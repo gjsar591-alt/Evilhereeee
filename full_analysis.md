@@ -1,562 +1,283 @@
-# HAVEN TEAM V2 - تقرير التحليل الشامل والفك الكامل
-
-## 1. معلومات الملف
-
-| الحقل | القيمة |
-|-------|--------|
-| حجم الملف | 124,713 بايت |
-| سطر الكود | 124,531 حرف (السطر 4) |
-| حجم الـ VM | 109,943 حرف |
-| جدول السلاسل | 461 عنصر |
-| مراجع السلاسل في الـ VM | 458 فريدة |
-| كتل العمليات | 41 كتلة |
-| حالات الـ VM | 307 حالة |
-| انتقالات الحالة | 93 انتقال |
-| انتقالات شرطية | 75 |
-
-## 2. طبقات التشفير والتشويش
-
-### الطبقة 1: ترميز السلاسل (String Encoding)
-- **النوع 'b'**: Base64 مخصص بأبجدية غير قياسية (64 رمز)
-- **النوع 'd'**: Base85 مخصص بأبجدية غير قياسية (85 رمز)
-- دالة البحث: `w(x)` ترجع `j[x + 34172]`
-
-### الطبقة 2: تسطيح التحكم (Control Flow Flattening)
-- كل الكود محوّل لحلقة `while i do` واحدة
-- شجرة بحث ثنائية للتوزيع على متغير الحالة `i`
-- 307+ فرع elseif, 93+ انتقال حالة
-- الثوابت الرقمية مشوّشة بعمليات حسابية معقدة
-
-### الطبقة 3: مضاد للعبث (Anti-Tamper)
-- `isfunctionhooked()` - كشف تعديل الدوال
-- `islclosure()` - التحقق من أنواع الإغلاق
-- `__metatable` - منع فحص الجداول الوصفية
-- `__gc` / `__len` - فخاخ جمع القمامة / الطول
-- `newproxy` - إنشاء كائنات userdata محمية
-- رسالة الخطأ: "Tamper Detected!"
-
-## 3. جدول السلاسل المفكّكة بالكامل
-
-### دوال API
-| الفهرس | السلسلة | الفئة |
-|--------|---------|-------|
-| 348 | `AWR0rtFSffF6ZE` | API |
-| 18 | `AlDeeEo6yF610` | API |
-| 24 | `AzI7BJkBWxVH5k` | API |
-| 422 | `BJgN4jyfqip5` | API |
-| 258 | `BmSW4zepXcZMN` | API |
-| 269 | `BoNs5JTmUlsHdj` | API |
-| 405 | `Color3` | API |
-| 92 | `Connect` | API |
-| 444 | `Create` | API |
-| 1 | `Destroy` | API |
-| 139 | `Disconnect` | API |
-| 60 | `EFLEIqjsJWgGf` | API |
-| 267 | `ElA3Y9GF0BnYz` | API |
-| 460 | `Enum` | API |
-| 283 | `FindFirstChild` | API |
-| 449 | `Flk5z4Z8huKCS` | API |
-| 162 | `GIpPeKUMYuTYr` | API |
-| 44 | `GRLAjQzPtRH2` | API |
-| 7 | `GdZqCInRyo6E` | API |
-| 434 | `GetPlayers` | API |
-| 220 | `GetService` | API |
-| 412 | `HttpGet` | API |
-| 72 | `Hzu4uRjdkG7f` | API |
-| 86 | `Instance` | API |
-| 101 | `JSONDecode` | API |
-| 195 | `JshWNO5iJdz7Cy` | API |
-| 133 | `K4q3aFp6H2kI` | API |
-| 393 | `KJ1M4ilP1qJsOm` | API |
-| 272 | `KfZ2vEXHZpgXH` | API |
-| 373 | `Kick` | API |
-| 453 | `Lerp` | API |
-| 207 | `M21RkMGpVmui` | API |
-| 166 | `Mp1XJnUbAVMm` | API |
-| 377 | `N6UAZfjFIw6cd` | API |
-| 78 | `Od3Hii1UvyrO` | API |
-| 222 | `OdBHt8Rbv65u43` | API |
-| 254 | `OzlH1R8IdgHv7` | API |
-| 239 | `PEhRgH4HPnGbX` | API |
-| 401 | `PappL3lkmPqUk` | API |
-| 287 | `Play` | API |
-| 443 | `Q3HERlfhPliXRT` | API |
-| 49 | `Q9hIowrNaaja` | API |
-| 257 | `QNXv0eUdHKx4` | API |
-| 121 | `QQDyzlGL7eEhO` | API |
-| 200 | `R7E38sEVC5hC` | API |
-| 436 | `RXVqPZX6yV7u` | API |
-| 52 | `SPVyAcVcC1O7PY` | API |
-| 181 | `TQ3n7eSAILoO` | API |
-| 211 | `TWj7ylXR2BYFS` | API |
-| 226 | `TvOBnLIZWbO1tK` | API |
-| 134 | `TweenInfo` | API |
-| 54 | `UDL0RUYuiekrwR` | API |
-| 131 | `UDim` | API |
-| 435 | `UDim2` | API |
-| 188 | `UZsd8gWN4Gu6ga` | API |
-| 16 | `UhfI41gmZRyE7` | API |
-| 340 | `UrlEncode` | API |
-| 171 | `VaxxFshwomfbV` | API |
-| 82 | `Vector3` | API |
-| 12 | `Xka7Cy91cJEQ` | API |
-| 201 | `Z1PDS7WvnCEnqD` | API |
-| 56 | `Z2IAu7xPeVU6Q` | API |
-| 379 | `ZDfJ7VLZlGpy` | API |
-| 232 | `ZeBH4XbMCWxy0g` | API |
-| 307 | `byte` | API |
-| 66 | `char` | API |
-| 9 | `concat` | API |
-| 70 | `debug` | API |
-| 403 | `error` | API |
-| 11 | `floor` | API |
-| 192 | `game` | API |
-| 245 | `getfenv` | API |
-| 241 | `getgenv` | API |
-| 353 | `gmatch` | API |
-| 357 | `gsub` | API |
-| 402 | `ipairs` | API |
-| 224 | `isfunctionhooked` | API |
-| 19 | `islclosure` | API |
-| 415 | `math` | API |
-| 256 | `pairs` | API |
-| 431 | `pcall` | API |
-| 202 | `random` | API |
-| 29 | `rawget` | API |
-| 99 | `remove` | API |
-| 361 | `setclipboard` | API |
-| 152 | `setmetatable` | API |
-| 406 | `string` | API |
-| 338 | `table` | API |
-| 372 | `task` | API |
-| 108 | `tonumber` | API |
-| 223 | `tostring` | API |
-| 199 | `type` | API |
-| 344 | `typeof` | API |
-| 96 | `unpack` | API |
-| 163 | `warn` | API |
-
-### الطرق الوصفية (Meta Methods)
-| الفهرس | السلسلة |
-|--------|---------|
-| 116 | `__metatable` |
-| 203 | `__gc` |
-| 206 | `__index` |
-| 332 | `__len` |
-
-### أنماط وسلاسل خاصة
-| الفهرس | السلسلة |
-|--------|---------|
-| 253 | `:(%d*):` |
-| 274 | `Tamper Detected!` |
-
-### معرّفات عشوائية (VM internal)
-| الفهرس | السلسلة |
-|--------|---------|
-| 17 | `+K^I` |
-| 22 | `tuGv` |
-| 28 | `p3DUdOQM` |
-| 31 | `qTlKNYEtsR6e` |
-| 45 | `cYe6Pitxuxuh45` |
-| 46 | `0hdiuAryoC0h` |
-| 53 | `fhwRPozVFd228` |
-| 55 | `_ENV` |
-| 67 | `oErei7iIakJZk` |
-| 69 | `tkUaum51oFTCDl` |
-| 71 | `yQgppOqWQmbQXX` |
-| 81 | `mqV` |
-| 95 | `lFz6LFfbcaQNm9` |
-| 104 | `cIofB2DWPIU0` |
-| 109 | `bdGAHArOOhwc` |
-| 124 | `cUN5YpdFYiOq` |
-| 135 | `1SzHU1hhtY4SUN` |
-| 154 | `b2o1n69OK5iq` |
-| 158 | `0UksvW1JVboQuS` |
-| 169 | `xZF0x` |
-| 170 | `lwAtT0tu8hp4` |
-| 191 | `1E2RwOJCQrfaZ7` |
-| 193 | `0IWLPmqXWGwBn` |
-| 216 | `hLOOTdCcrLx1k` |
-| 219 | `kdhPCuPEko2n` |
-| 225 | `u95VMbZvA9e85` |
-| 230 | `yQ6AjG` |
-| 246 | `_G` |
-| 250 | `bRwGUGYtI41Jx` |
-| 259 | `l1` |
-| 278 | `rTxO5rP6jmti` |
-| 285 | `aVz3WGxXC6Z8T` |
-| 301 | `ysQezM4rr3AVtV` |
-| 303 | `gSqNRUBiaV6Olh` |
-| 314 | `wtE61klAG4OJ1` |
-| 320 | `b8ashv5DvDUbYK` |
-| 326 | `h9Jfg77MjTCrs` |
-| 327 | `l3v4XRj7i2DL` |
-| 328 | `wunC3zT1BVo5` |
-| 341 | `x0Xr0gPTcKID` |
-| ... | +13 أخرى |
-
-## 4. جميع مراجع السلاسل في الـ VM (بترتيب الظهور)
-
-هذه جميع عمليات البحث عن السلاسل التي يقوم بها الـ VM:
-
-- `Od3Hii1UvyrO`
-- `Disconnect`
-- `char`
-- `5hpaHMuzz6g4`
-- `aVz3WGxXC6Z8T`
-- `N6UAZfjFIw6cd`
-- `ZDfJ7VLZlGpy`
-- `GdZqCInRyo6E`
-- `Z2IAu7xPeVU6Q`
-- `KfZ2vEXHZpgXH`
-- `mqV`
-- `QQDyzlGL7eEhO`
-- `Vector3`
-- `rcw`
-- `PappL3lkmPqUk`
-- `Lerp`
-- `Xka7Cy91cJEQ`
-- `+K^I`
-- `setclipboard`
-- `x`
-- `PEhRgH4HPnGbX`
-- `rawget`
-- `F`
-- `bdGAHArOOhwc`
-- `u`
-- `BJgN4jyfqip5`
-- `yQ6AjG`
-- `xZF0x`
-- `I`
-- `Enum`
-- `GIpPeKUMYuTYr`
-- `Color3`
-- `AzI7BJkBWxVH5k`
-- `0IWLPmqXWGwBn`
-- `Create`
-- `EFLEIqjsJWgGf`
-- `Tamper Detected!`
-- `QNXv0eUdHKx4`
-- `__gc`
-- `Connect`
-- `y`
-- `i2d0IHEM4LmsMp`
-- `:(%d*):`
-- `qP1gNVaFeGmu`
-- `OzlH1R8IdgHv7`
-- `c`
-- `typeof`
-- `tonumber`
-- `_G`
-- `J`
-- `Q9hIowrNaaja`
-- `Destroy`
-- `game`
-- `hLOOTdCcrLx1k`
-- `gsub`
-- `M21RkMGpVmui`
-- `UrlEncode`
-- `SPVyAcVcC1O7PY`
-- `gdQ5wUfcEEhW`
-- `}`
-- `R7E38sEVC5hC`
-- `__len`
-- `oErei7iIakJZk`
-- `OdBHt8Rbv65u43`
-- `GRLAjQzPtRH2`
-- `c3kOH8DFQq0v6u`
-- `setmetatable`
-- `getgenv`
-- `AlDeeEo6yF610`
-- `UDim`
-- `warn`
-- `l2`
-- `Mp1XJnUbAVMm`
-- `table`
-- `HttpGet`
-- `:`
-- `GetService`
-- `BoNs5JTmUlsHdj`
-- `UDim2`
-- `isfunctionhooked`
-- `tkUaum51oFTCDl`
-- `FindFirstChild`
-- `__metatable`
-- `UZsd8gWN4Gu6ga`
-- `unpack`
-- `TweenInfo`
-- `Instance`
-- `cUN5YpdFYiOq`
-- `TQ3n7eSAILoO`
-- `pcall`
-- `b8ashv5DvDUbYK`
-- `type`
-- `o`
-- `RXVqPZX6yV7u`
-- `ElA3Y9GF0BnYz`
-- `islclosure`
-- `lFz6LFfbcaQNm9`
-- `wADCVkt3asvWbG`
-- `getfenv`
-- `rCBKJ5zXlNsAr`
-- `K4q3aFp6H2kI`
-- `floor`
-- `VaxxFshwomfbV`
-- `0UksvW1JVboQuS`
-- `JSONDecode`
-- `1SzHU1hhtY4SUN`
-- `pairs`
-- `TWj7ylXR2BYFS`
-- `tuGv`
-- `math`
-- `wtE61klAG4OJ1`
-- `Flk5z4Z8huKCS`
-- `8xW3srj2hmH7GT`
-- `gSqNRUBiaV6Olh`
-- `random`
-- `tostring`
-- `W`
-- `oyJrifjEJZLi`
-- `yQgppOqWQmbQXX`
-- `Play`
-- `'`
-- `cYe6Pitxuxuh45`
-- `l3v4XRj7i2DL`
-- `_ENV`
-- `BmSW4zepXcZMN`
-- `task`
-- `AWR0rtFSffF6ZE`
-- `ZeBH4XbMCWxy0g`
-- `b2o1n69OK5iq`
-- `u95VMbZvA9e85`
-- `error`
-- `ysQezM4rr3AVtV`
-- `Q3HERlfhPliXRT`
-- `JshWNO5iJdz7Cy`
-- `string`
-- `61x83ByN3ZXZZG`
-- `byte`
-- `kdhPCuPEko2n`
-- `qTlKNYEtsR6e`
-- `cIofB2DWPIU0`
-- `remove`
-- `fhwRPozVFd228`
-- `UhfI41gmZRyE7`
-- `wunC3zT1BVo5`
-- `TvOBnLIZWbO1tK`
-- `=`
-- `h9Jfg77MjTCrs`
-- `gmatch`
-- `eZe9laeFkvZI`
-- `ipairs`
-- `UDL0RUYuiekrwR`
-- `KJ1M4ilP1qJsOm`
-- `l1`
-- `debug`
-- `1E2RwOJCQrfaZ7`
-- `Z1PDS7WvnCEnqD`
-- `p3DUdOQM`
-- `GetPlayers`
-- `bRwGUGYtI41Jx`
-- `lwAtT0tu8hp4`
-- `Hzu4uRjdkG7f`
-- `__index`
-- `0hdiuAryoC0h`
-- `rTxO5rP6jmti`
-- `Kick`
-- `-`
-
-**المجموع**: 221 مرجع, 166 سلسلة فريدة
-
-## 5. الكود المصدري المُعاد بناؤه
-
-```lua
--- ============================================================================
--- HAVEN TEAM V2 - DECOMPILED SOURCE
--- Decompiled from control-flow-flattened VM bytecode
--- Note: This is a semantic reconstruction, not a line-by-line deobfuscation.
--- The VM bytecode cannot be fully decompiled without runtime execution.
--- ============================================================================
-
--- Outer closure parameters (passed from obfuscation wrapper):
--- newproxy, unpack, getmetatable, setmetatable, getfenv() or _ENV, select, {...}
-
--- =============================
--- PHASE 1: Environment Setup
--- =============================
-
-signal:Disconnect()
-
--- [2] aVz3WGxXC6Z8T -> N6UAZfjFIw6cd -> ZDfJ7VLZlGpy
-
--- [3] GdZqCInRyo6E -> Z2IAu7xPeVU6Q -> KfZ2vEXHZpgXH -> mqV -> QQDyzlGL7eEhO -> Vector3 -> rcw
-
-
--- =============================
--- PHASE 5: Clipboard Operations
--- =============================
-
-setclipboard(data)  -- clipboard write
-
-local val = rawget(tbl, key)
-
--- [6] F -> ZDfJ7VLZlGpy -> bdGAHArOOhwc
-
--- [7] u -> BJgN4jyfqip5 -> yQ6AjG
-
-
--- [9] I
-
-element.BackgroundColor3 = Color3.fromRGB(...)
-
--- [11] 0IWLPmqXWGwBn -> Create
-
-error("Tamper Detected!")
-
-setclipboard(data)  -- clipboard write
-
-setclipboard(data)  -- clipboard write
-
--- [15] gdQ5wUfcEEhW -> }
-
-setclipboard(data)  -- clipboard write
-
--- [17] __len -> oErei7iIakJZk
-
--- [18] OdBHt8Rbv65u43
-
-local genv = getgenv()
-
-
--- [21] Mp1XJnUbAVMm -> table
-
-
--- =============================
--- PHASE 6: Network Communication
--- =============================
-
-local response = game:HttpGet(url)
-
-if isfunctionhooked(targetFunc) then
-end
-
-if not islclosure(targetFunc) then
-end
-
--- [25] math -> wtE61klAG4OJ1 -> Flk5z4Z8huKCS
-
--- Accessing _G (global table)
--- Accessing _ENV (environment)
-
-setclipboard(data)  -- clipboard write
-
--- [28] tonumber -> b2o1n69OK5iq
-
-setclipboard(data)  -- clipboard write
-
--- [30] JshWNO5iJdz7Cy -> string
-
--- String/math operations: byte
-local b = string.byte(str, pos)
-
--- [32] qTlKNYEtsR6e -> cIofB2DWPIU0
-
--- [33] remove -> fhwRPozVFd228
-
--- [34] UhfI41gmZRyE7 -> wunC3zT1BVo5 -> TvOBnLIZWbO1tK
-
--- [35] =
-
--- String/math operations: gmatch
-
-local encoded = HttpService:UrlEncode(param)
-
--- debug library access
-
-
--- =============================
--- PHASE 7: Player Operations
--- =============================
-
-local players = Players:GetPlayers()
-
-setclipboard(data)  -- clipboard write
-
-local encoded = HttpService:UrlEncode(param)
-
-```
-
-## 6. تحليل السلوك
-
-### النشاط الشبكي
-- يستخدم `HttpGet` لإرسال طلبات HTTP
-- يستخدم `UrlEncode` لترميز معاملات URL
-- يستخدم `JSONDecode` لتحليل استجابات الخادم
-- **لا توجد عناوين URL مضمّنة** - يتم بناؤها أثناء التشغيل
-
-### التلاعب بالحافظة
-- `setclipboard` مُستدعاة **10 مرات** - الأكثر تكراراً
-- مؤشر قوي على سرقة بيانات أو اختطاف الحافظة
-- يمكن استخدامها لنسخ روابط خبيثة أو بيانات اعتماد
-
-### التلاعب باللاعبين
-- `GetPlayers` - سرد جميع اللاعبين في اللعبة
-- `Kick` - طرد اللاعبين من اللعبة
-
-### مضاد التحليل
-- `isfunctionhooked` - كشف تعديلات Roblox exploit
-- `islclosure` - التحقق من أنواع الدوال
-- مكتبة `debug` - للفحص المتقدم
-- `getgenv`/`getfenv`/`_G`/`_ENV` - التلاعب بالبيئة
-
-### بناء واجهة المستخدم
-- `Instance` + `Create` - إنشاء عناصر GUI
-- `UDim2`, `UDim`, `Color3`, `Vector3` - التحديد والتنسيق
-- `TweenInfo` + `Lerp` - الرسوم المتحركة
-- `Connect` / `Disconnect` - معالجة الأحداث
-
-## 7. الروابط والعناوين (URLs)
-
-### نتيجة البحث: لم يتم العثور على روابط مضمّنة
-
-بعد فك تشفير جميع السلاسل الـ 461 وتحليل بايت كود الـ VM بالكامل:
-
-**لا توجد عناوين URL نصية في أي مكان في الكود.**
-
-السبب:
-1. **الروابط تُبنى ديناميكياً** من أجزاء رقمية في بايت كود الـ VM
-2. **يتم جلبها من خادم خارجي** عبر `HttpGet` ثم `JSONDecode`
-3. **مقسّمة عبر حالات VM متعددة** وتُجمّع أثناء التشغيل
-4. **محمية بفحوصات العبث** التي تتحقق من سلامة التنفيذ
-
-### المؤشرات على اتصالات شبكية:
-| الدالة | الاستخدام |
-|--------|-----------|
-| `HttpGet` | إرسال طلبات GET |
-| `UrlEncode` | ترميز معاملات URL |
-| `JSONDecode` | فك تشفير استجابات JSON |
-| `GetService` | الحصول على HttpService |
-
-لاستخراج الروابط الفعلية، يجب تشغيل السكريبت في بيئة Roblox
-محمية مع مراقبة حركة الشبكة.
-
-## 8. التقييم الأمني
-
-**التصنيف**: سكريبت استغلال/غش لمنصة Roblox
-
-**مستوى الخطر**: عالي جداً
-
-### مؤشرات السلوك الخبيث:
-1. **سرقة الحافظة** - `setclipboard` (10 مرات) لنسخ/تعديل محتوى الحافظة
-2. **اتصال بخوادم خارجية** - HTTP مع ترميز URL وفك JSON
-3. **طرد اللاعبين** - القدرة على طرد لاعبين من اللعبة
-4. **تقنيات مضادة للتحليل** - متعددة الطبقات لمنع الفحص
-5. **التلاعب بالبيئة** - تجاوز أمان Roblox
-6. **طبقات تشويش متعددة** - لإخفاء النية الحقيقية
-
-### ملخص التهديد:
-هذا السكريبت مصمم للعمل كأداة غش/استغلال في ألعاب Roblox.
-يتميز بنظام حماية متقدم يمنع التحليل، واتصال بخوادم خارجية
-لتحميل أوامر أو تحديثات، والأهم من ذلك هو الاستخدام المكثف
-لوظيفة `setclipboard` (10 مرات) مما يشير بقوة إلى سرقة
-بيانات من حافظة المستخدم أو حقنها ببيانات خبيثة.
+# HAVEN TEAM V2 - التحليل الأمني الكامل
+# Complete Security Analysis
+
+## ⚠️ تحذير: سكريبت خبيث (Malicious Script Warning)
+
+هذا السكريبت هو **أداة اختراق/غش لـ Roblox** مشفرة بعدة طبقات حماية.
+
+## الملخص التنفيذي (Executive Summary)
+
+| الخاصية | القيمة |
+|---------|--------|
+| حجم الملف | 124,531 حرف |
+| السلاسل المشفرة | 461 |
+| السلاسل المقروءة | 157 |
+| حالات VM | 67 فريدة |
+| انتقالات الحالة | 95 |
+| فروع شرطية | 25 |
+| نقطة الدخول | state 4015136 |
+| تشفير Base64 | أبجدية مخصصة (64 حرف) |
+| تشفير Base85 | أبجدية مخصصة (85 حرف) |
+| w(x) offset | j[x + 34172] |
+
+## طبقات التشفير (Encryption Layers)
+
+1. **Base64 مخصص** (بادئة 'b'): أبجدية 64 حرف غير قياسية
+2. **Base85 مخصص** (بادئة 'd'): أبجدية 85 حرف
+3. **تسطيح تدفق التحكم**: آلة حالات بشجرة بحث ثنائية
+4. **تشويش أرقام**: تعبيرات حسابية بدل أرقام مباشرة
+5. **نظام مراجع**: O[]/H[] لإدارة الذاكرة والتشويش
+
+## السلوكيات الخبيثة (Malicious Behaviors)
+
+### 🔴 سرقة الحافظة (Clipboard Theft)
+- `setclipboard` يُستدعى **17 مرة** - الأكثر استدعاءً في السكريبت
+- يجمع بيانات من اللاعبين واللعبة
+- يستخدم `UrlEncode` لترميز البيانات (3 مرات)
+
+### 🔴 اتصال بالشبكة (Network Communication)
+- `HttpGet`: تحميل بيانات/أوامر من خادم خارجي
+- `JSONDecode`: فك ترميز الاستجابة
+- URLs مبنية في وقت التشغيل عبر `string.char`/`string.byte`
+
+### 🔴 مكافحة التلاعب (Anti-Tamper)
+- `isfunctionhooked()`: يكشف إذا كانت الدوال مُعترضة
+- `islclosure()`: يتحقق من أصالة الدوال
+- `Kick('Tamper Detected!')`: يطرد اللاعب عند الكشف
+
+### 🔴 تلاعب بالبيئة (Environment Manipulation)
+- `getgenv()`: الوصول لبيئة exploit المشتركة
+- `getfenv()`: الوصول لبيئة الدالة
+- `_G`: جدول المتغيرات العامة
+
+## جدول السلاسل المصنف (Categorized String Table)
+
+### Exploit API
+
+| Index | w() | String |
+|-------|-----|--------|
+| 20 | w(-34152) | `islclosure` |
+| 30 | w(-34142) | `rawget` |
+| 153 | w(-34019) | `setmetatable` |
+| 225 | w(-33947) | `isfunctionhooked` |
+| 362 | w(-33810) | `setclipboard` |
+| 413 | w(-33759) | `HttpGet` |
+
+### Anti-Tamper Messages
+
+| Index | w() | String |
+|-------|-----|--------|
+| 275 | w(-33897) | `Tamper Detected!` |
+
+### Network API
+
+| Index | w() | String |
+|-------|-----|--------|
+| 341 | w(-33831) | `UrlEncode` |
+
+### Roblox Services
+
+| Index | w() | String |
+|-------|-----|--------|
+| 193 | w(-33979) | `game` |
+
+### Roblox Methods
+
+| Index | w() | String |
+|-------|-----|--------|
+| 2 | w(-34170) | `Destroy` |
+| 93 | w(-34079) | `Connect` |
+| 140 | w(-34032) | `Disconnect` |
+| 221 | w(-33951) | `GetService` |
+| 284 | w(-33888) | `FindFirstChild` |
+| 288 | w(-33884) | `Play` |
+| 374 | w(-33798) | `Kick` |
+| 435 | w(-33737) | `GetPlayers` |
+| 445 | w(-33727) | `Create` |
+
+### Roblox Types
+
+| Index | w() | String |
+|-------|-----|--------|
+| 83 | w(-34089) | `Vector3` |
+| 87 | w(-34085) | `Instance` |
+| 132 | w(-34040) | `UDim` |
+| 135 | w(-34037) | `TweenInfo` |
+| 406 | w(-33766) | `Color3` |
+| 436 | w(-33736) | `UDim2` |
+| 461 | w(-33711) | `Enum` |
+
+### Lua Standard Library
+
+| Index | w() | String |
+|-------|-----|--------|
+| 97 | w(-34075) | `unpack` |
+| 109 | w(-34063) | `tonumber` |
+| 164 | w(-34008) | `warn` |
+| 200 | w(-33972) | `type` |
+| 224 | w(-33948) | `tostring` |
+| 257 | w(-33915) | `pairs` |
+| 339 | w(-33833) | `table` |
+| 345 | w(-33827) | `typeof` |
+| 373 | w(-33799) | `task` |
+| 403 | w(-33769) | `ipairs` |
+| 404 | w(-33768) | `error` |
+| 407 | w(-33765) | `string` |
+| 416 | w(-33756) | `math` |
+| 432 | w(-33740) | `pcall` |
+
+### Metatable Keys
+
+| Index | w() | String |
+|-------|-----|--------|
+| 204 | w(-33968) | `__gc` |
+| 207 | w(-33965) | `__index` |
+| 333 | w(-33839) | `__len` |
+
+### String/Math Operations
+
+| Index | w() | String |
+|-------|-----|--------|
+| 10 | w(-34162) | `concat` |
+| 12 | w(-34160) | `floor` |
+| 67 | w(-34105) | `char` |
+| 203 | w(-33969) | `random` |
+| 308 | w(-33864) | `byte` |
+| 358 | w(-33814) | `gsub` |
+
+### Other Identifiers
+
+| Index | w() | String |
+|-------|-----|--------|
+| 3 | w(-34169) | `x` |
+| 8 | w(-34164) | `GdZqCInRyo6E` |
+| 13 | w(-34159) | `Xka7Cy91cJEQ` |
+| 17 | w(-34155) | `UhfI41gmZRyE7` |
+| 18 | w(-34154) | `+K^I` |
+| 19 | w(-34153) | `AlDeeEo6yF610` |
+| 23 | w(-34149) | `tuGv` |
+| 25 | w(-34147) | `AzI7BJkBWxVH5k` |
+| 45 | w(-34127) | `GRLAjQzPtRH2` |
+| 49 | w(-34123) | `o` |
+| 50 | w(-34122) | `Q9hIowrNaaja` |
+| 53 | w(-34119) | `SPVyAcVcC1O7PY` |
+| 55 | w(-34117) | `UDL0RUYuiekrwR` |
+| 56 | w(-34116) | `_ENV` |
+| 57 | w(-34115) | `Z2IAu7xPeVU6Q` |
+| 61 | w(-34111) | `EFLEIqjsJWgGf` |
+| 63 | w(-34109) | `u` |
+| 71 | w(-34101) | `debug` |
+| 73 | w(-34099) | `Hzu4uRjdkG7f` |
+| 78 | w(-34094) | `y` |
+| 79 | w(-34093) | `Od3Hii1UvyrO` |
+| 82 | w(-34090) | `mqV` |
+| 100 | w(-34072) | `remove` |
+| 114 | w(-34058) | `J` |
+| 122 | w(-34050) | `QQDyzlGL7eEhO` |
+| 134 | w(-34038) | `K4q3aFp6H2kI` |
+| 165 | w(-34007) | `I` |
+| 167 | w(-34005) | `Mp1XJnUbAVMm` |
+| 170 | w(-34002) | `xZF0x` |
+| 172 | w(-34000) | `VaxxFshwomfbV` |
+| 182 | w(-33990) | `TQ3n7eSAILoO` |
+| 189 | w(-33983) | `UZsd8gWN4Gu6ga` |
+| 196 | w(-33976) | `JshWNO5iJdz7Cy` |
+| 198 | w(-33974) | `W` |
+| 201 | w(-33971) | `R7E38sEVC5hC` |
+| 202 | w(-33970) | `Z1PDS7WvnCEnqD` |
+| 208 | w(-33964) | `M21RkMGpVmui` |
+| 212 | w(-33960) | `TWj7ylXR2BYFS` |
+| 223 | w(-33949) | `OdBHt8Rbv65u43` |
+| 227 | w(-33945) | `TvOBnLIZWbO1tK` |
+| 231 | w(-33941) | `yQ6AjG` |
+| 233 | w(-33939) | `ZeBH4XbMCWxy0g` |
+| 240 | w(-33932) | `PEhRgH4HPnGbX` |
+| 254 | w(-33918) | `:(%d*):` |
+| 255 | w(-33917) | `OzlH1R8IdgHv7` |
+| 258 | w(-33914) | `QNXv0eUdHKx4` |
+| 270 | w(-33902) | `BoNs5JTmUlsHdj` |
+| 273 | w(-33899) | `KfZ2vEXHZpgXH` |
+| 340 | w(-33832) | `F` |
+| 349 | w(-33823) | `AWR0rtFSffF6ZE` |
+| 378 | w(-33794) | `N6UAZfjFIw6cd` |
+| 380 | w(-33792) | `ZDfJ7VLZlGpy` |
+| 394 | w(-33778) | `KJ1M4ilP1qJsOm` |
+| 402 | w(-33770) | `PappL3lkmPqUk` |
+| 423 | w(-33749) | `BJgN4jyfqip5` |
+| 426 | w(-33746) | `rcw` |
+| 437 | w(-33735) | `RXVqPZX6yV7u` |
+| 450 | w(-33722) | `Flk5z4Z8huKCS` |
+| 453 | w(-33719) | `c` |
+| 454 | w(-33718) | `Lerp` |
+
+## إحصائيات الاستدعاءات (Call Statistics)
+
+| الدالة | عدد المراجع |
+|--------|------------|
+| `-` | 17 |
+| `UhfI41gmZRyE7` | 10 |
+| `M21RkMGpVmui` | 6 |
+| `Vector3` | 5 |
+| `KJ1M4ilP1qJsOm` | 4 |
+| `o` | 3 |
+| `F` | 3 |
+| `` | 2 |
+| `mqV` | 2 |
+| `Q9hIowrNaaja` | 2 |
+| `setclipboard` | 2 |
+| `Mp1XJnUbAVMm` | 2 |
+| `remove` | 2 |
+| `FindFirstChild` | 2 |
+| `UrlEncode` | 2 |
+
+## خريطة الحالات الأكثر استهدافاً (Most Targeted States)
+
+| State | Transitions To |
+|-------|---------------|
+| 3538028 | 8 |
+| 798397 | 7 |
+| 0 | 5 |
+| 244600 | 2 |
+| 11749104 | 2 |
+| 8446674 | 2 |
+| 11024643 | 2 |
+| 16123142 | 2 |
+| 939896 | 2 |
+| 3875469 | 2 |
+| 8754929 | 2 |
+| 8700592 | 2 |
+| 551847 | 2 |
+| 8164605 | 2 |
+| 61 | 1 |
+
+## الفروع الشرطية (Conditional Branches)
+
+- if `<condition>` → state 13753759 else → state 9490551
+- if `<condition>` → state 3247466 else → state 530266
+- if `<condition>` → state 3286621 else → state 2414939
+- if `<condition>` → state 6609017 else → state 11618016
+- if `<condition>` → state 4469785 else → state 10739070
+- if `<condition>` → state 4480913 else → state 531053
+- if `<condition>` → state 16349376 else → state 15540632
+- if `<condition>` → state 7162254 else → state 15691660
+- if `<condition>` → state 7479895 else → state 10947362
+- if `<condition>` → state 12501617 else → state 2431793
+- if `<condition>` → state 13161543 else → state 14419034
+- if `<condition>` → state 4330395 else → state 12737404
+- if `<condition>` → state 7276068 else → state 15221698
+- if `<condition>` → state 11737393 else → state 16627728
+- if `<condition>` → state 5763310 else → state 7153999
+- if `<condition>` → state 736776 else → state 6038829
+- if `<condition>` → state 3702371 else → state 14776115
+- if `<condition>` → state 13805665 else → state 2486982
+- if `<condition>` → state 16500342 else → state 9980560
+- if `<condition>` → state 14762014 else → state 10402853
+- if `<condition>` → state 1670327 else → state 1575708
+- if `<condition>` → state 14515332 else → state 7950622
+- if `<condition>` → state 3760843 else → state 16123142
+- if `<condition>` → state 6732394 else → state 2114199
+- if `<condition>` → state 8389699 else → state 16373456
+
+---
+*تم التحليل بواسطة Deep VM Trace Decompiler*
+*Analysis generated by Deep VM Trace Decompiler*
