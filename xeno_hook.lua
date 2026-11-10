@@ -1,85 +1,82 @@
-local LOG = {}
 local URLS = {}
 local SOURCES = {}
-local oldClipboard = setclipboard
-local oldError = error
+local _clip = setclipboard
+local _err = error
+local _ls = loadstring
 
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+local function onNamecall(self, ...)
     local method = getnamecallmethod()
-    local args = table.pack(...)
     if method == "HttpGet" or method == "HttpGetAsync" then
-        warn("[URL] " .. tostring(args[1]))
-        table.insert(URLS, tostring(args[1]))
-        local ok, resp = pcall(oldNamecall, self, ...)
-        if ok then
-            warn("[RESP] " .. tostring(resp):sub(1, 2000))
-            table.insert(SOURCES, {t = "http", url = tostring(args[1]), data = tostring(resp)})
-            if writefile then
-                writefile("HAVEN_src_" .. tostring(#SOURCES) .. ".lua", tostring(resp))
-            end
-            return resp
+        local url = tostring(select(1, ...))
+        warn("[URL] " .. url)
+        table.insert(URLS, url)
+        local resp = self:HttpGet(url)
+        warn("[RESP] " .. tostring(resp):sub(1, 2000))
+        table.insert(SOURCES, tostring(resp))
+        if writefile then
+            writefile("HAVEN_src_" .. tostring(#SOURCES) .. ".txt", tostring(resp))
         end
-        return oldNamecall(self, ...)
-    elseif method == "JSONDecode" then
-        warn("[JSON] " .. tostring(args[1]):sub(1, 500))
-    elseif method == "Kick" then
+        return resp
+    end
+    if method == "JSONDecode" then
+        warn("[JSON] " .. tostring(select(1, ...)):sub(1, 500))
+    end
+    if method == "Kick" then
         warn("[KICK BLOCKED]")
         return
     end
-    return oldNamecall(self, ...)
-end))
+    return nil
+end
 
-local oldLs = loadstring
-getgenv().loadstring = newcclosure(function(src, name)
-    warn("[LOADSTRING] len=" .. tostring(#tostring(src)))
-    table.insert(SOURCES, {t = "loadstring", data = tostring(src)})
+local old
+old = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    if method == "HttpGet" or method == "HttpGetAsync" or method == "JSONDecode" or method == "Kick" then
+        return onNamecall(self, ...)
+    end
+    return old(self, ...)
+end)
+
+getgenv().loadstring = function(src, name)
+    local s = tostring(src)
+    warn("[LOADSTRING] " .. tostring(#s) .. " chars")
+    table.insert(SOURCES, s)
     if writefile then
-        writefile("HAVEN_ls_" .. tostring(#SOURCES) .. ".lua", tostring(src))
+        writefile("HAVEN_ls_" .. tostring(#SOURCES) .. ".lua", s)
     end
-    if name then
-        return oldLs(src, name)
-    end
-    return oldLs(src)
-end)
+    return _ls(src)
+end
 
-getgenv().setclipboard = newcclosure(function(data)
+getgenv().setclipboard = function(data)
     warn("[CLIP] " .. tostring(data):sub(1, 500))
-    table.insert(SOURCES, {t = "clip", data = tostring(data)})
-end)
+    table.insert(SOURCES, tostring(data))
+end
 
-getgenv().error = newcclosure(function(msg, level)
-    local m = tostring(msg)
-    if string.find(m, "Tamper") then
+getgenv().error = function(msg)
+    if string.find(tostring(msg), "Tamper") then
         warn("[TAMPER BLOCKED]")
         return
     end
-    if level then
-        return oldError(msg, level)
-    end
-    return oldError(msg)
-end)
+    _err(msg)
+end
 
 getgenv().dump = function()
-    local r = ""
-    for i, u in ipairs(URLS) do
-        r = r .. "[URL " .. i .. "] " .. u .. "\n"
+    local r = "=== URLS ===\n"
+    for i = 1, #URLS do
+        r = r .. URLS[i] .. "\n"
     end
-    r = r .. "\n"
-    for i, s in ipairs(SOURCES) do
-        r = r .. "[" .. s.t .. "] " .. (s.url or "") .. "\n" .. s.data .. "\n---\n"
+    r = r .. "\n=== SOURCES ===\n"
+    for i = 1, #SOURCES do
+        r = r .. "--- " .. i .. " ---\n" .. SOURCES[i] .. "\n"
     end
     if writefile then
         writefile("HAVEN_DUMP.txt", r)
     end
-    if oldClipboard then
-        oldClipboard(r)
+    if _clip then
+        _clip(r)
     end
-    warn("[DUMP DONE] " .. #URLS .. " urls, " .. #SOURCES .. " sources")
+    warn("[DUMP DONE]")
 end
 
-task.delay(30, function()
-    getgenv().dump()
-end)
-
-warn("[HOOK READY] Run HAVEN now. Type dump() to save.")
+task.delay(30, getgenv().dump)
+warn("[HOOK READY] Run HAVEN now")
