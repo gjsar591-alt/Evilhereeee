@@ -1,113 +1,64 @@
 local LOG = {}
 local URLS = {}
 local SOURCES = {}
-
-local function log(tag, msg)
-    local entry = "[" .. tag .. "] " .. tostring(msg)
-    table.insert(LOG, entry)
-    warn(entry)
-end
+local oldClipboard = setclipboard
+local oldError = error
 
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
     local method = getnamecallmethod()
-    local args = {...}
-
+    local args = table.pack(...)
     if method == "HttpGet" or method == "HttpGetAsync" then
-        local url = tostring(args[1])
-        log("URL", url)
-        table.insert(URLS, url)
+        warn("[URL] " .. tostring(args[1]))
+        table.insert(URLS, tostring(args[1]))
         local ok, resp = pcall(oldNamecall, self, ...)
         if ok then
-            local respStr = tostring(resp)
-            log("RESPONSE", url .. "\n" .. respStr:sub(1, 3000))
-            table.insert(SOURCES, {type = "http", url = url, data = respStr})
-            if respStr:find("function") or respStr:find("local ") or respStr:find("return") then
-                log("LUA_SOURCE", "Lua code detected! Length: " .. #respStr)
-                if writefile then
-                    writefile("HAVEN_source_" .. #SOURCES .. ".lua", respStr)
-                end
-            end
+            warn("[RESP] " .. tostring(resp):sub(1, 2000))
+            table.insert(SOURCES, {t = "http", url = tostring(args[1]), data = tostring(resp)})
+            if writefile then writefile("HAVEN_src_" .. tostring(#SOURCES) .. ".lua", tostring(resp)) end
             return resp
-        else
-            log("HTTP_ERR", tostring(resp))
-            return oldNamecall(self, ...)
         end
+        return oldNamecall(self, ...)
     elseif method == "JSONDecode" then
-        log("JSON", tostring(args[1]):sub(1, 1000))
-    elseif method == "UrlEncode" then
-        log("ENCODE", tostring(args[1]))
+        warn("[JSON] " .. tostring(args[1]):sub(1, 500))
     elseif method == "Kick" then
-        log("KICK", "BLOCKED: " .. tostring(args[1]))
-        return nil
-    elseif method == "GetService" then
-        log("SERVICE", tostring(args[1]))
+        warn("[KICK BLOCKED]")
+        return
     end
-
     return oldNamecall(self, ...)
 end))
 
-local oldLoadstring = loadstring
-getgenv().loadstring = newcclosure(function(src, ...)
-    local srcStr = tostring(src)
-    log("LOADSTRING", "Length: " .. #srcStr)
-    log("LOADSTRING_CODE", srcStr)
-    table.insert(SOURCES, {type = "loadstring", data = srcStr})
-    if writefile then
-        writefile("HAVEN_loadstring_" .. #SOURCES .. ".lua", srcStr)
-    end
-    return oldLoadstring(src, ...)
+local oldLs = loadstring
+getgenv().loadstring = newcclosure(function(src, name)
+    warn("[LOADSTRING] len=" .. tostring(#tostring(src)))
+    table.insert(SOURCES, {t = "loadstring", data = tostring(src)})
+    if writefile then writefile("HAVEN_ls_" .. tostring(#SOURCES) .. ".lua", tostring(src)) end
+    if name then return oldLs(src, name) end
+    return oldLs(src)
 end)
 
-local oldClipboard = setclipboard
 getgenv().setclipboard = newcclosure(function(data)
-    local str = tostring(data)
-    log("CLIPBOARD", str:sub(1, 2000))
-    table.insert(SOURCES, {type = "clipboard", data = str})
-    if writefile then
-        writefile("HAVEN_clip_" .. #SOURCES .. ".txt", str)
-    end
+    warn("[CLIP] " .. tostring(data):sub(1, 500))
+    table.insert(SOURCES, {t = "clip", data = tostring(data)})
 end)
 
-local oldError = error
-getgenv().error = newcclosure(function(msg, ...)
-    local m = tostring(msg)
-    if m:find("Tamper") or m:find("tamper") then
-        log("TAMPER", "BLOCKED: " .. m)
-        return
-    end
-    return oldError(msg, ...)
+getgenv().error = newcclosure(function(msg, level)
+    if tostring(msg):find("Tamper") then warn("[TAMPER BLOCKED]") return end
+    if level then return oldError(msg, level) end
+    return oldError(msg)
 end)
 
-function getgenv().dump()
-    local out = {}
-    table.insert(out, "=== URLS ===")
-    for i, u in ipairs(URLS) do
-        table.insert(out, i .. ") " .. u)
-    end
-    table.insert(out, "\n=== SOURCES ===")
+getgenv().dump = function()
+    local r = ""
+    for i, u in ipairs(URLS) do r = r .. "[URL " .. i .. "] " .. u .. "\n" end
+    r = r .. "\n"
     for i, s in ipairs(SOURCES) do
-        table.insert(out, "--- [" .. i .. "] " .. s.type .. " ---")
-        if s.url then table.insert(out, "URL: " .. s.url) end
-        table.insert(out, s.data)
+        r = r .. "[" .. s.t .. "] " .. (s.url or "") .. "\n" .. s.data .. "\n---\n"
     end
-    table.insert(out, "\n=== LOG ===")
-    for _, e in ipairs(LOG) do
-        table.insert(out, e)
-    end
-    local result = table.concat(out, "\n")
-    if writefile then
-        writefile("HAVEN_FULL_DUMP.txt", result)
-    end
-    if oldClipboard then
-        oldClipboard(result)
-    end
-    warn("[DUMP] Done! URLs: " .. #URLS .. " Sources: " .. #SOURCES)
+    if writefile then writefile("HAVEN_DUMP.txt", r) end
+    if oldClipboard then oldClipboard(r) end
+    warn("[DUMP DONE] " .. #URLS .. " urls, " .. #SOURCES .. " sources")
 end
 
-task.spawn(function()
-    task.wait(30)
-    getgenv().dump()
-end)
-
-warn("[HOOK READY] Execute HAVEN script now. dump() to save.")
+task.delay(30, function() getgenv().dump() end)
+warn("[HOOK READY] Run HAVEN now. Type dump() to save.")
