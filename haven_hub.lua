@@ -2538,6 +2538,30 @@
     return "Head"
   end
 
+  -- هل الهدف ظاهر من الكاميرا (بدون جدار بينكم)؟
+  local function IsAimPartVisible(part)
+    local cam = workspace.CurrentCamera
+    if not cam or not part then return false end
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {LocalPlayer.Character}
+    local origin = cam.CFrame.Position
+    local hit = workspace:Raycast(origin, part.Position - origin, params)
+    return (not hit) or hit.Instance:IsDescendantOf(part.Parent)
+  end
+
+  -- يرجّع الجزء المطلوب من لاعب لو كان هدف صالح (حي، مو أنا، وظاهر لو فحص الجدران مفعّل)
+  local function GetValidAimPart(name, partName)
+    local player = name and (name ~= LocalPlayer.Name) and Players:FindFirstChild(name)
+    local char = player and player.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local part = char and (char:FindFirstChild(partName) or char:FindFirstChild("HumanoidRootPart"))
+    if not (part and hum and hum.Health > 0 and IsPlayerAlive(player, roles)) then return nil end
+    if Options.AimLockWallCheck and Options.AimLockWallCheck:GetValue() and not IsAimPartVisible(part) then return nil end
+    return part
+  end
+
+  local aimTargetName = nil -- الهدف الحالي: نثبت عليه وما نبدّل بين اللاعبين كل فريم
   local function GetAimLockPart()
     local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not myRoot then return nil end
@@ -2553,15 +2577,18 @@
       if mode ~= "Sheriff" and v14 then table.insert(candidates, v14) end
       if mode ~= "Murderer" and v15 then table.insert(candidates, v15) end
     end
+    -- لو الهدف الحالي لسا صالح ومن ضمن المرشحين نكمل عليه
+    if aimTargetName and table.find(candidates, aimTargetName) then
+      local part = GetValidAimPart(aimTargetName, partName)
+      if part then return part end
+    end
+    aimTargetName = nil
     local bestPart, bestDist = nil, math.huge
     for _, name in ipairs(candidates) do
-      local player = (name ~= LocalPlayer.Name) and Players:FindFirstChild(name)
-      local char = player and player.Character
-      local hum = char and char:FindFirstChildOfClass("Humanoid")
-      local part = char and (char:FindFirstChild(partName) or char:FindFirstChild("HumanoidRootPart"))
-      if part and hum and hum.Health > 0 and IsPlayerAlive(player, roles) then
+      local part = GetValidAimPart(name, partName)
+      if part then
         local dist = (part.Position - myRoot.Position).Magnitude
-        if dist < bestDist then bestDist = dist bestPart = part end
+        if dist < bestDist then bestDist = dist bestPart = part aimTargetName = name end
       end
     end
     return bestPart
@@ -2571,28 +2598,33 @@
   local aimLook = nil
   local function StopAimLock()
     aimLook = nil
+    aimTargetName = nil
     if aimLockConn then aimLockConn:Disconnect() aimLockConn = nil end
     if aimLockBound then pcall(function() RunService:UnbindFromRenderStep("HavenAimLock") end) aimLockBound = false end
   end
   local function AimLockStep(dt)
     if shared.VertexLoaded ~= true or not Options.AimLock:GetValue() then StopAimLock() return end
     pcall(function()
+      dt = math.clamp(dt or 0.016, 0, 0.1)
       local cam = workspace.CurrentCamera
       local part = GetAimLockPart()
-      if cam and part then
-        local smooth = Options.AimLockSmooth and Options.AimLockSmooth:GetValue() or 5
-        local alpha = math.clamp((dt or 0.016) * (22 - smooth * 2), 0, 1)
-        local camPos = cam.CFrame.Position
-        local offset = part.Position - camPos
-        if offset.Magnitude > 0.05 then
-          local desired = offset.Unit
-          aimLook = (aimLook or cam.CFrame.LookVector):Lerp(desired, alpha)
-          if aimLook.Magnitude < 0.001 then aimLook = desired end
-          cam.CFrame = CFrame.lookAt(camPos, camPos + aimLook.Unit)
-        end
-      else
-        aimLook = nil
-      end
+      if not (cam and part) then aimLook = nil return end
+      local camPos = cam.CFrame.Position
+      -- نسبق حركة الهدف شوي عشان اللوك ما يتأخر عنه وهو يتحرك
+      local aimPos = part.Position
+      pcall(function() aimPos = aimPos + part.AssemblyLinearVelocity * 0.06 end)
+      local offset = aimPos - camPos
+      if offset.Magnitude < 0.05 then return end
+      local desired = offset.Unit
+      aimLook = aimLook or cam.CFrame.LookVector
+      -- السرعة: 1 = أسرع شي، 10 = أبطأ شي. الدوران ناعم وبنفس السرعة على أي عدد فريمات
+      local smooth = Options.AimLockSmooth and Options.AimLockSmooth:GetValue() or 5
+      local rate = 9 - smooth * 0.8
+      -- لما يوصل للهدف يمسك عليه أقوى عشان ما يفلت منه
+      if aimLook:Dot(desired) > 0.995 then rate = rate * 3 end
+      local nextLook = aimLook:Lerp(desired, 1 - math.exp(-rate * dt))
+      aimLook = (nextLook.Magnitude > 0.001) and nextLook.Unit or desired
+      cam.CFrame = CFrame.lookAt(camPos, camPos + aimLook)
     end)
   end
 
@@ -2612,6 +2644,7 @@
   local aimLockRemoving = Players.PlayerRemoving:Connect(function(p) AimLockPlayerDropdown:RemoveOptions({p.Name}) end)
   shared.Roles:Dropdown({Name = "Aim Lock Part", Multi = false, Required = true, Options = {"Head", "Body", "Random"}, Default = 1, Callback = function() end}, "AimLockPart")
   shared.Roles:Slider("AimLockSmooth", "Aim Lock Smoothness", 1, 10, 5, "Percent", function() end)
+  shared.Roles:Toggle("AimLockWallCheck", "Aim Lock Wall Check", function() end)
 
   -- تفعيل اللوك بسرعة: زر عائم على الشاشة + مفتاح اختصار
   local AimLockKeybind = shared.Roles:Keybind("AimLockKey", "Aim Lock Hotkey", function() HavenLib.PlaySound("toggle") Options.AimLock:Toggle() end)
