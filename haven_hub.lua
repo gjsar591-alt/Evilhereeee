@@ -71,7 +71,7 @@
       userInfoBlurred = "rbxassetid://18824089198",
       buttonImage     = "rbxassetid://10709791437",
       shadowImage     = "rbxassetid://1316045217",
-      settingsImage   = "rbxassetid://18767849817",
+      settingsImage   = "rbxassetid://10734950309",
       chevronImage    = "rbxassetid://10709790948"
     }
 
@@ -158,7 +158,7 @@
           Create("UICorner", {CornerRadius = UDim.new(0, 10)})
         })
       end
-      local tabSwitchersScrollingFrame = Create("ScrollingFrame", {Name = "TabSwitchersScrollingFrame", AutomaticCanvasSize = Enum.AutomaticSize.Y, BottomImage = "", CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.Y, ScrollBarThickness = 0, TopImage = "", BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromOffset(0, 58), Size = UDim2.new(1, 0, 1, -(58 + 50)), Parent = rail}, {
+      local tabSwitchersScrollingFrame = Create("ScrollingFrame", {Name = "TabSwitchersScrollingFrame", AutomaticCanvasSize = Enum.AutomaticSize.Y, BottomImage = "", CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.Y, ScrollBarThickness = 0, TopImage = "", BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 1, -(56 + 46)), Parent = rail}, {
         Create("UIListLayout", {Padding = UDim.new(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder})
       })
       local headshotImage, isReady
@@ -241,7 +241,10 @@
         Create("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Theme.Accent, Transparency = 0.5}),
         Create("UICorner", {CornerRadius = UDim.new(0, 10)}),
         Create("UIPadding", {PaddingBottom = UDim.new(0, 10), PaddingTop = UDim.new(0, 10)}),
-        Create("UIListLayout", {Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder})
+        Create("UIListLayout", {Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder}),
+        Create("TextLabel", {Name = "Title", FontFace = InterFont(Enum.FontWeight.Bold), Text = "QUICK SETTINGS", TextColor3 = Theme.AccentSecondary, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1, LayoutOrder = -1, Size = UDim2.fromOffset(220, 22), ZIndex = 15}, {
+          Create("UIPadding", {PaddingLeft = UDim.new(0, 14)})
+        })
       })
       local globalSettingsUIScale = Create("UIScale", {Scale = 0, Parent = globalSettings})
       local gsToggled = false
@@ -254,15 +257,19 @@
 
       function WindowFunctions:GlobalSetting(gSettings)
         hasGlobalSetting = true
-        local gsBtn = Create("TextButton", {Text = "", BackgroundTransparency = 1, Size = UDim2.fromOffset(200, 30), ZIndex = 15, Parent = globalSettings}, {
-          Create("UIPadding", {PaddingLeft = UDim.new(0, 15)}),
-          Create("UIListLayout", {Padding = UDim.new(0, 10), FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Center})
-        })
-        local check = Create("Frame", {BackgroundColor3 = Theme.AccentSecondary, BackgroundTransparency = gSettings.Default and 0 or 1, Size = UDim2.fromOffset(8, 8), LayoutOrder = -1, ZIndex = 15, Parent = gsBtn}, {Create("UICorner", {CornerRadius = UDim.new(1, 0)})})
-        local sName = Create("TextLabel", {FontFace = InterFont(Enum.FontWeight.Medium), Text = gSettings.Name, TextColor3 = Theme.Text, TextSize = 13, TextTransparency = gSettings.Default and 0.1 or 0.5, AutomaticSize = Enum.AutomaticSize.XY, BackgroundTransparency = 1, ZIndex = 15, Parent = gsBtn})
-        local st = gSettings.Default
+        local gsBtn = Create("TextButton", {Text = "", AutoButtonColor = false, BackgroundColor3 = Theme.CardHover, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromOffset(220, 36), ZIndex = 15, Parent = globalSettings})
+        local st = gSettings.Default and true or false
+        local sName = Create("TextLabel", {FontFace = InterFont(Enum.FontWeight.Medium), Text = gSettings.Name, TextColor3 = Theme.Text, TextSize = 13, TextTransparency = st and 0.05 or 0.4, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, BackgroundTransparency = 1, Position = UDim2.fromOffset(14, 0), Size = UDim2.new(1, -66, 1, 0), ZIndex = 15, Parent = gsBtn})
+        local gsSwitch = Create("Frame", {AnchorPoint = Vector2.new(1, 0.5), BackgroundColor3 = st and Theme.Accent or Theme.ToggleOff, BorderSizePixel = 0, Position = UDim2.new(1, -14, 0.5, 0), Size = UDim2.fromOffset(32, 16), ZIndex = 15, Parent = gsBtn}, {Create("UICorner", {CornerRadius = UDim.new(1, 0)})})
+        local gsKnob = Create("Frame", {AnchorPoint = Vector2.new(0, 0.5), BackgroundColor3 = st and Theme.Text or Theme.ToggleHeadOff, BorderSizePixel = 0, Position = st and UDim2.new(1, -13, 0.5, 0) or UDim2.new(0, 3, 0.5, 0), Size = UDim2.fromOffset(10, 10), ZIndex = 15, Parent = gsSwitch}, {Create("UICorner", {CornerRadius = UDim.new(1, 0)})})
+        gsBtn.MouseEnter:Connect(function() Tween(gsBtn, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {BackgroundTransparency = 0.45}):Play() end)
+        gsBtn.MouseLeave:Connect(function() Tween(gsBtn, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {BackgroundTransparency = 1}):Play() end)
         gsBtn.MouseButton1Click:Connect(function()
-          st = not st check.BackgroundTransparency = st and 0 or 1 sName.TextTransparency = st and 0.1 or 0.5
+          st = not st
+          local info = TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+          Tween(gsSwitch, info, {BackgroundColor3 = st and Theme.Accent or Theme.ToggleOff}):Play()
+          Tween(gsKnob, info, {BackgroundColor3 = st and Theme.Text or Theme.ToggleHeadOff, Position = st and UDim2.new(1, -13, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)}):Play()
+          sName.TextTransparency = st and 0.05 or 0.4
           if gSettings.Callback then task.spawn(gSettings.Callback, st) end
         end)
         return {}
@@ -271,21 +278,23 @@
       function WindowFunctions:TabGroup()
         local GroupFuncs = {}
         local sectionTabSwitchers = Create("Frame", {AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Size = UDim2.new(1, -12, 0, 0), Parent = tabSwitchersScrollingFrame}, {
-          Create("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder})
+          Create("UIListLayout", {Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder})
         })
 
         function GroupFuncs:Tab(tSettings)
           local TabFunctions = {}
           tabIndex = tabIndex + 1
           -- زر التبويب: أيقونة وتحتها اسم قصير
-          local shortName = string.match(tSettings.Name, "^[%w]+") or tSettings.Name
-          local tabSwitcher = Create("TextButton", {Name = "TabSwitcher", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 52), LayoutOrder = tabIndex, Parent = sectionTabSwitchers})
-          local tabTile = Create("Frame", {Name = "TabTile", AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = Theme.CardBg, BorderSizePixel = 0, Position = UDim2.new(0.5, 0, 0, 2), Size = UDim2.fromOffset(40, 32), Parent = tabSwitcher}, {
-            Create("UICorner", {CornerRadius = UDim.new(0, 10)})
+          local shortName = tSettings.Short or string.match(tSettings.Name, "^[%w]+") or tSettings.Name
+          local tabSwitcher = Create("TextButton", {Name = "TabSwitcher", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 50), LayoutOrder = tabIndex, Parent = sectionTabSwitchers})
+          -- مؤشر أحمر على حافة الشريط للتبويب المفتوح
+          local activeBar = Create("Frame", {Name = "ActiveBar", AnchorPoint = Vector2.new(0, 0.5), BackgroundColor3 = Theme.Accent, BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.new(0, -6, 0, 19), Size = UDim2.fromOffset(3, 22), Parent = tabSwitcher}, {Create("UICorner", {CornerRadius = UDim.new(1, 0)})})
+          local tabTile = Create("Frame", {Name = "TabTile", AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = Theme.CardBg, BorderSizePixel = 0, Position = UDim2.new(0.5, 0, 0, 1), Size = UDim2.fromOffset(36, 36), Parent = tabSwitcher}, {
+            Create("UICorner", {CornerRadius = UDim.new(1, 0)})
           })
-          local tabStroke = Create("UIStroke", {Name = "TabSwitcherUIStroke", ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Theme.StrokeIdle, Transparency = 0.45, Parent = tabTile})
-          local tabImage = tSettings.Image and Create("ImageLabel", {Name = "TabImage", Image = tSettings.Image, ImageColor3 = Theme.SubText, AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(20, 20), Parent = tabTile})
-          local tabSwitcherName = Create("TextLabel", {Name = "TabSwitcherName", FontFace = InterFont(Enum.FontWeight.SemiBold), Text = shortName, TextColor3 = Theme.SubText, TextSize = 8, TextTruncate = Enum.TextTruncate.AtEnd, BackgroundTransparency = 1, Position = UDim2.fromOffset(2, 37), Size = UDim2.new(1, -4, 0, 12), Parent = tabSwitcher})
+          local tabStroke = Create("UIStroke", {Name = "TabSwitcherUIStroke", ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Theme.StrokeIdle, Thickness = 1, Transparency = 0.45, Parent = tabTile})
+          local tabImage = tSettings.Image and Create("ImageLabel", {Name = "TabImage", Image = tSettings.Image, ImageColor3 = Theme.SubText, AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(18, 18), Parent = tabTile})
+          local tabSwitcherName = Create("TextLabel", {Name = "TabSwitcherName", FontFace = InterFont(Enum.FontWeight.SemiBold), Text = shortName, TextColor3 = Theme.SubText, TextSize = 8, TextTruncate = Enum.TextTruncate.AtEnd, BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 38), Size = UDim2.new(1, 0, 0, 11), Parent = tabSwitcher})
           tabSwitcher.MouseEnter:Connect(function() if currentTabInstance ~= tabs[tabSwitcher] then Tween(tabTile, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {BackgroundColor3 = Theme.CardHover}):Play() end end)
           tabSwitcher.MouseLeave:Connect(function() if currentTabInstance ~= tabs[tabSwitcher] then Tween(tabTile, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {BackgroundColor3 = Theme.CardBg}):Play() end end)
 
@@ -600,8 +609,10 @@
                 local stroke = tile and tile:FindFirstChild("TabSwitcherUIStroke")
                 local image = tile and tile:FindFirstChild("TabImage")
                 local name = v:FindFirstChild("TabSwitcherName")
+                local bar = v:FindFirstChild("ActiveBar")
+                if bar then Tween(bar, tabInfo, {BackgroundTransparency = 1}):Play() end
                 if tile then Tween(tile, tabInfo, {BackgroundColor3 = Theme.CardBg}):Play() end
-                if stroke then Tween(stroke, tabInfo, {Transparency = 0.45}):Play() end
+                if stroke then Tween(stroke, tabInfo, {Color = Theme.StrokeIdle, Thickness = 1, Transparency = 0.45}):Play() end
                 if image then Tween(image, tabInfo, {ImageColor3 = Theme.SubText}):Play() end
                 if name then Tween(name, tabInfo, {TextColor3 = Theme.SubText}):Play() end
               end
@@ -610,7 +621,8 @@
             currentTabInstance = tabs[tabSwitcher]
             currentTab.Text = string.upper(tSettings.Name)
             Tween(tabTile, tabInfo, {BackgroundColor3 = Theme.Accent}):Play()
-            Tween(tabStroke, tabInfo, {Transparency = 1}):Play()
+            Tween(tabStroke, tabInfo, {Color = Theme.Accent, Thickness = 3, Transparency = 0.7}):Play()
+            Tween(activeBar, tabInfo, {BackgroundTransparency = 0}):Play()
             Tween(tabSwitcherName, tabInfo, {TextColor3 = Theme.Text}):Play()
             if tabImage then Tween(tabImage, tabInfo, {ImageColor3 = Theme.Text}):Play() end
           end
@@ -618,8 +630,8 @@
           tabSwitcher.MouseButton1Click:Connect(SelectCurrentTab)
           function TabFunctions:Select() SelectCurrentTab() end
           function TabFunctions:InsertConfigSection(_, THISWINDOW)
-            THISWINDOW:GlobalSetting({Name = "UI Transparency", Default = THISWINDOW:GetAcrylicBlurState(), Callback = function(b) THISWINDOW:SetAcrylicBlurState(b) end})
-            THISWINDOW:GlobalSetting({Name = "Show User Info", Default = THISWINDOW:GetUserInfoState(), Callback = function(b) THISWINDOW:SetUserInfoState(b) end})
+            THISWINDOW:GlobalSetting({Name = "Glass Window", Default = THISWINDOW:GetAcrylicBlurState(), Callback = function(b) THISWINDOW:SetAcrylicBlurState(b) end})
+            THISWINDOW:GlobalSetting({Name = "Show My Profile", Default = THISWINDOW:GetUserInfoState(), Callback = function(b) THISWINDOW:SetUserInfoState(b) end})
             local configSection = TabFunctions:Section({Side = "Left"})
             configSection:SubLabel({Text = "CONFIGURATION & SERVER CONTROLS"})
             configSection:Toggle("SaveSettings", "Auto Save Settings", function()
@@ -1477,13 +1489,13 @@
 
   Vertex = Window:TabGroup()
   shared.tabs = {
-    Main     = Vertex:Tab({Name = "Main & Farm", Image = "rbxassetid://10709811110"}),
-    Roles    = Vertex:Tab({Name = "Combat & Roles", Image = "rbxassetid://10734975692"}),
-    Target   = Vertex:Tab({Name = "Target Control", Image = "rbxassetid://10734977012"}),
-    Visual   = Vertex:Tab({Name = "Visuals & ESP", Image = "rbxassetid://10723346959"}),
-    Player   = Vertex:Tab({Name = "LocalPlayer", Image = "rbxassetid://10734920149"}),
-    Tracker  = Vertex:Tab({Name = "Webhooks", Image = "rbxassetid://10734943902"}),
-    Settings = Vertex:Tab({Name = "Settings", Image = "rbxassetid://10734963191"})
+    Main     = Vertex:Tab({Name = "Auto Farm", Short = "Farm", Image = "rbxassetid://10709811110"}),
+    Roles    = Vertex:Tab({Name = "Combat", Short = "Combat", Image = "rbxassetid://10734975692"}),
+    Target   = Vertex:Tab({Name = "Player Target", Short = "Target", Image = "rbxassetid://10734977012"}),
+    Visual   = Vertex:Tab({Name = "ESP & Visuals", Short = "ESP", Image = "rbxassetid://10723346959"}),
+    Player   = Vertex:Tab({Name = "My Character", Short = "Player", Image = "rbxassetid://10734920149"}),
+    Tracker  = Vertex:Tab({Name = "Discord Webhooks", Short = "Discord", Image = "rbxassetid://10734943902"}),
+    Settings = Vertex:Tab({Name = "Settings", Short = "Config", Image = "rbxassetid://10734963191"})
   }
 
   repeat task.wait() until shared.loaded
