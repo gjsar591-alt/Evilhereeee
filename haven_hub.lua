@@ -1,6 +1,9 @@
 (function()
   if not game:IsLoaded() then game.Loaded:Wait() end
 
+  -- توافق مع كل المنفذات: بديل لو getgenv غير موجودة
+  local getgenv = getgenv or function() return (getfenv and getfenv(0)) or _G end
+
   local Services = setmetatable({}, {
     __index = function(self, k)
       local s = game:GetService(k)
@@ -17,6 +20,24 @@
   local HttpService = Services.HttpService
   local UserInputService = Services.UserInputService
   local ReplicatedStorage = Services.ReplicatedStorage
+
+  -- توافق مع كل المنفذات: يجرب gethui ثم CoreGui ثم PlayerGui
+  local function SafeParentGui(guiObj)
+    local targets = {
+      function() return gethui and gethui() end,
+      function() local cg = game:GetService("CoreGui") return (cloneref and cloneref(cg)) or cg end,
+      function() return LocalPlayer:WaitForChild("PlayerGui") end
+    }
+    for _, getTarget in ipairs(targets) do
+      local ok = pcall(function()
+        local target = getTarget()
+        if typeof(target) ~= "Instance" then error("no target") end
+        guiObj.Parent = target
+      end)
+      if ok and guiObj.Parent then return true end
+    end
+    return false
+  end
   local HavenLib = (function()
     local haven = {Options = {}, Folder = "HavenHub"}
     getgenv().Options = getgenv().Options or {}
@@ -89,7 +110,8 @@
       local WindowFunctions = {}
       if Settings.AcrylicBlur ~= nil then acrylicBlur = Settings.AcrylicBlur end
 
-      local screenGui = Create("ScreenGui", {Name = "HavenHubUI", ResetOnSpawn = false, DisplayOrder = 100, IgnoreGuiInset = true, ScreenInsets = Enum.ScreenInsets.None, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = (isStudio and LocalPlayer.PlayerGui) or Services.CoreGui})
+      local screenGui = Create("ScreenGui", {Name = "HavenHubUI", ResetOnSpawn = false, DisplayOrder = 100, IgnoreGuiInset = true, ScreenInsets = Enum.ScreenInsets.None, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
+      SafeParentGui(screenGui)
       local notifications = Create("Frame", {Name = "Notifications", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 20, Parent = screenGui}, {
         Create("UIListLayout", {Padding = UDim.new(0, 10), HorizontalAlignment = Enum.HorizontalAlignment.Right, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Bottom}),
         Create("UIPadding", {PaddingBottom = UDim.new(0, 14), PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14), PaddingTop = UDim.new(0, 14)})
@@ -118,9 +140,9 @@
         Create("UIPadding", {PaddingLeft = UDim.new(0, 14)})
       })
 
-      local exit = Create("TextButton", {Name = "Exit", Text = "", AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(244, 63, 94), BorderSizePixel = 0, Size = UDim2.fromOffset(10, 10), Parent = controls}, {Create("UICorner", {CornerRadius = UDim.new(1, 0)})})
-      local minimize = Create("TextButton", {Name = "Minimize", Text = "", AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(245, 158, 11), BorderSizePixel = 0, LayoutOrder = 1, Size = UDim2.fromOffset(10, 10), Parent = controls}, {Create("UICorner", {CornerRadius = UDim.new(1, 0)})})
-      Create("TextButton", {Name = "Maximize", Text = "", AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(16, 185, 129), BackgroundTransparency = 0.6, Active = false, Interactable = false, LayoutOrder = 2, Size = UDim2.fromOffset(10, 10), Parent = controls}, {Create("UICorner", {CornerRadius = UDim.new(1, 0)})})
+      local exit = Create("TextButton", {Name = "Exit", Text = "", AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(225, 29, 46), BorderSizePixel = 0, Size = UDim2.fromOffset(10, 10), Parent = controls}, {Create("UICorner", {CornerRadius = UDim.new(1, 0)})})
+      local minimize = Create("TextButton", {Name = "Minimize", Text = "", AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(150, 150, 156), BorderSizePixel = 0, LayoutOrder = 1, Size = UDim2.fromOffset(10, 10), Parent = controls}, {Create("UICorner", {CornerRadius = UDim.new(1, 0)})})
+      Create("TextButton", {Name = "Maximize", Text = "", AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(70, 70, 76), BackgroundTransparency = 0.6, Active = false, Interactable = false, LayoutOrder = 2, Size = UDim2.fromOffset(10, 10), Parent = controls}, {Create("UICorner", {CornerRadius = UDim.new(1, 0)})})
 
       local information = Create("Frame", {Name = "Information", BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 0, 62), Parent = sidebar}, {
         Create("Frame", {Name = "Divider", AnchorPoint = Vector2.new(0, 1), BackgroundColor3 = Theme.Accent, BackgroundTransparency = 0.88, BorderSizePixel = 0, Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 1)})
@@ -158,7 +180,8 @@
         Create("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Center})
       })
 
-      local headshotImage, isReady = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarBust, Enum.ThumbnailSize.Size48x48)
+      local headshotImage, isReady
+      pcall(function() headshotImage, isReady = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarBust, Enum.ThumbnailSize.Size48x48) end)
       local headshot = Create("ImageLabel", {Name = "Headshot", BackgroundTransparency = 1, Size = UDim2.fromOffset(34, 34), Image = (isReady and headshotImage) or "rbxassetid://0", Parent = informationGroup}, {
         Create("UICorner", {CornerRadius = UDim.new(1, 0)}),
         Create("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Theme.Accent, Transparency = 0.25})
@@ -1215,10 +1238,7 @@
       gui.IgnoreGuiInset = true
       gui.DisplayOrder = 1000
       gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-      local parented = pcall(function()
-        gui.Parent = (RunService:IsStudio() and LocalPlayer:WaitForChild("PlayerGui")) or Services.CoreGui
-      end)
-      if not parented or not gui.Parent then gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+      if not SafeParentGui(gui) then error("no gui parent") end
 
       dim = New("Frame", {Name = "Dim", Active = true, BackgroundColor3 = Color3.fromRGB(8, 8, 10), BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1)}, gui)
 
