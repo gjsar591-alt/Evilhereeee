@@ -1721,7 +1721,7 @@
 
       local function farmStep()
         if not Options.AutoFarm:GetValue() or not IsPlayerAlive(LocalPlayer, roles) or not root then return end
-        local mode = (Options.Mode:GetValue() == "Nearest" or Options.Mode:GetValue() == "Nearest + XP Farm") and "closest" or "random"
+        local mode = (Options.Mode:GetValue() == "Nearest" or Options.Mode:GetValue() == "Nearest Farm") and "closest" or "random"
         local coin = FindCoin(root, mode)
         if coin and v18 ~= coin then EnableFloat() MoveToCoin(coin, root) v18 = coin end
       end
@@ -1792,7 +1792,7 @@
     DisableFloat()
   end)
 
-  shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Nearest + XP Farm", "Nearest", "Randomize"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
+  shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Nearest Farm", "Nearest", "Randomize"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
   shared.Main:Divider()
   shared.Main:SubLabel({Text = "SURVIVAL & ROUND UTILITIES"})
 
