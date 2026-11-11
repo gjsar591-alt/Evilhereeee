@@ -381,6 +381,8 @@
       end)
     end
 
+    haven.PlaySound = PlaySound
+
     local function AttachCardHover(cardFrame, strokeObj)
       cardFrame.MouseEnter:Connect(function()
         Tween(cardFrame, TweenInfo.new(0.18, Enum.EasingStyle.Sine), {BackgroundColor3 = Theme.CardHover}):Play()
@@ -2540,6 +2542,73 @@
   local aimLockRemoving = Players.PlayerRemoving:Connect(function(p) AimLockPlayerDropdown:RemoveOptions({p.Name}) end)
   shared.Roles:Dropdown({Name = "Aim Lock Part", Multi = false, Required = true, Options = {"Head", "Body"}, Default = 1, Callback = function() end}, "AimLockPart")
   shared.Roles:Slider("AimLockSmooth", "Aim Lock Smoothness", 1, 10, 3, "Percent", function() end)
+
+  -- تفعيل اللوك بسرعة: زر عائم على الشاشة + مفتاح اختصار
+  shared.Roles:Keybind("AimLockKey", "Aim Lock Hotkey", function() HavenLib.PlaySound("toggle") Options.AimLock:Toggle() end)
+  shared.Roles:Toggle("AimLockButton", "Show Aim Lock Button", {State = true}, function() end)
+
+  local aimLockGui
+  pcall(function()
+    aimLockGui = Instance.new("ScreenGui")
+    aimLockGui.Name = "HavenAimLockButton"
+    aimLockGui.ResetOnSpawn = false
+    aimLockGui.IgnoreGuiInset = true
+    aimLockGui.DisplayOrder = 150
+    aimLockGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    SafeParentGui(aimLockGui)
+
+    local RED, DARK, WHITE = Color3.fromRGB(225, 29, 46), Color3.fromRGB(14, 14, 16), Color3.fromRGB(255, 255, 255)
+    local lockBtn = Instance.new("TextButton")
+    lockBtn.Name = "LockButton"
+    lockBtn.AnchorPoint = Vector2.new(1, 0.5)
+    lockBtn.Position = UDim2.new(1, -20, 0.5, 76)
+    lockBtn.Size = UDim2.fromOffset(62, 62)
+    lockBtn.AutoButtonColor = false
+    lockBtn.BackgroundColor3 = DARK
+    lockBtn.BackgroundTransparency = 0.15
+    lockBtn.BorderSizePixel = 0
+    lockBtn.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+    lockBtn.Text = "LOCK\nOFF"
+    lockBtn.TextColor3 = WHITE
+    lockBtn.TextSize = 12
+    lockBtn.Parent = aimLockGui
+    local corner = Instance.new("UICorner") corner.CornerRadius = UDim.new(1, 0) corner.Parent = lockBtn
+    local stroke = Instance.new("UIStroke") stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border stroke.Color = RED stroke.Thickness = 2 stroke.Transparency = 0.2 stroke.Parent = lockBtn
+
+    -- سحب الزر لأي مكان، والضغطة بدون سحب تشغّل/تطفّي اللوك
+    local start, startPos, moved = nil, nil, false
+    lockBtn.InputBegan:Connect(function(inp)
+      if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then start = inp.Position startPos = lockBtn.Position moved = false end
+    end)
+    UserInputService.InputChanged:Connect(function(inp)
+      if start and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+        local delta = inp.Position - start
+        if not moved and delta.Magnitude >= 8 then moved = true end
+        if moved then lockBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end
+      end
+    end)
+    UserInputService.InputEnded:Connect(function(inp)
+      if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then start = nil end
+    end)
+    lockBtn.Activated:Connect(function()
+      if moved then return end
+      HavenLib.PlaySound("toggle")
+      Options.AimLock:Toggle()
+    end)
+
+    -- يطابق شكل الزر مع حالة اللوك، ويختفي لو طفّيت خيار إظهاره
+    task.spawn(function()
+      while shared.VertexLoaded == true and aimLockGui.Parent do
+        local on = Options.AimLock:GetValue()
+        lockBtn.Visible = Options.AimLockButton:GetValue()
+        lockBtn.Text = on and "LOCK\nON" or "LOCK\nOFF"
+        lockBtn.BackgroundColor3 = on and RED or DARK
+        stroke.Color = on and WHITE or RED
+        task.wait(0.15)
+      end
+      pcall(function() aimLockGui:Destroy() end)
+    end)
+  end)
 
   -- قسم Webhooks
   shared.Tracker:SubLabel({Text = "DISCORD WEBHOOK INTEGRATION"})
