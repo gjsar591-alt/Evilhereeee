@@ -1375,13 +1375,18 @@
     logo.Name = "Logo"
     logo.AnchorPoint = Vector2.new(0.5, 0.5)
     logo.Position = UDim2.fromScale(0.5, 0.5)
-    logo.Size = UDim2.new(1, -4, 1, -4)
+    logo.Size = UDim2.fromScale(1, 1)
     logo.BackgroundTransparency = 1
     logo.ScaleType = Enum.ScaleType.Fit
     logo.Image = HavenLoader.LogoAsset
     logo.ZIndex = clickButton.ZIndex
     logo.Parent = clickButton
     clickButton.Text = ""
+    -- الشعار لحاله: بدون المربع الأسود والإطار
+    clickButton.BackgroundTransparency = 1
+    clickButton.Size = UDim2.fromOffset(60, 60)
+    local stroke = clickButton:FindFirstChildOfClass("UIStroke")
+    if stroke then stroke.Enabled = false end
   end)
   HavenLoader:SetProgress(50)
 
