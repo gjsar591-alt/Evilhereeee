@@ -72,23 +72,10 @@ local function orbit(parent, scale, color, thickness, seconds, direction)
     return ring
 end
 
--- one white piece of the "H" (positions are 0..1 inside the red disc)
-local function piece(parent, x, y, w, h, rotation)
-    return new("Frame", {
-        AnchorPoint = CENTER,
-        Position = UDim2.fromScale(x, y),
-        Size = UDim2.fromScale(w, h),
-        Rotation = rotation or 0,
-        BackgroundColor3 = WHITE,
-        BorderSizePixel = 0,
-        ZIndex = 3,
-    }, parent)
-end
-
 -- soft red halo made of stacked translucent circles
 local function glow(parent)
     local holder = circle(parent, 1)
-    local layers = { { 0.74, 0.78 }, { 0.84, 0.86 }, { 0.96, 0.92 }, { 1.1, 0.96 } }
+    local layers = { { 0.6, 0.8 }, { 0.74, 0.87 }, { 0.9, 0.92 }, { 1.08, 0.96 } }
     for _, layer in ipairs(layers) do
         circle(holder, layer[1], { BackgroundTransparency = layer[2], BackgroundColor3 = RED })
     end
@@ -100,28 +87,28 @@ local function glow(parent)
     ):Play()
 end
 
--- dial of 60 small ticks that turns slowly
-local function dial(parent)
-    local holder = circle(parent, 1)
-    for i = 0, 59 do
-        local major = i % 5 == 0
-        local length = major and 0.042 or 0.022
-        local angle = math.rad(i * 6)
-        local radius = 0.5 - length / 2
-        new("Frame", {
-            AnchorPoint = CENTER,
-            Position = UDim2.fromScale(0.5 + radius * math.cos(angle), 0.5 + radius * math.sin(angle)),
-            Size = UDim2.fromScale(major and 0.009 or 0.006, length),
-            Rotation = i * 6 + 90,
-            BackgroundColor3 = WHITE,
-            BackgroundTransparency = major and 0.05 or 0.7,
-            BorderSizePixel = 0,
-        }, holder)
+-- rounded square (optionally filled) centred in the parent
+local function square(parent, scale, rotation, props)
+    local f = new("Frame", {
+        AnchorPoint = CENTER,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(scale, scale),
+        Rotation = rotation,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+    }, parent)
+    for k, v in pairs(props or {}) do
+        f[k] = v
     end
+    new("UICorner", { CornerRadius = UDim.new(0.18, 0) }, f)
+    return f
+end
+
+local function spin(object, seconds, degrees)
     TweenService:Create(
-        holder,
-        TweenInfo.new(48, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
-        { Rotation = 360 }
+        object,
+        TweenInfo.new(seconds, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
+        { Rotation = object.Rotation + degrees }
     ):Play()
 end
 
@@ -139,29 +126,46 @@ function Haven.Logo(parent, size)
     local scale = new("UIScale", { Scale = 0 }, root)
 
     glow(root)
-    dial(root)
 
-    -- spinning comet arcs
-    orbit(root, 0.84, WHITE, math.max(2, size * 0.013), 2, 1)
-    orbit(root, 0.75, RED, math.max(2, size * 0.02), 4, -1)
+    -- outer track: faint circle, a bright arc sweeping around it and a satellite dot
+    local track = circle(root, 0.95)
+    new("UIStroke", { Color = WHITE, Transparency = 0.85, Thickness = math.max(1, size * 0.005) }, track)
+    orbit(root, 0.95, WHITE, math.max(2, size * 0.012), 4, 1)
+    local satellite = circle(root, 0.95)
+    local dot = circle(satellite, 0.05, { BackgroundTransparency = 0, BackgroundColor3 = WHITE })
+    dot.Position = UDim2.fromScale(0, 0.5)
+    spin(satellite, 4, 360)
 
-    -- red disc with a white rim
-    local disc = circle(root, 0.62, { BackgroundTransparency = 0, BackgroundColor3 = WHITE, ZIndex = 2 })
-    new("UIGradient", { Color = ColorSequence.new(RED, RED_DARK), Rotation = 55 }, disc)
-    new("UIStroke", { Color = WHITE, Thickness = math.max(1.5, size * 0.011) }, disc)
-    local inner = circle(disc, 0.86, { ZIndex = 2 })
-    new("UIStroke", { Color = WHITE, Transparency = 0.75, Thickness = math.max(1, size * 0.005) }, inner)
+    -- inner red arc going the other way
+    orbit(root, 0.82, RED, math.max(2, size * 0.018), 4, -1)
 
-    -- the mark: two pointed towers joined by a roof, with a diamond above
-    local mark = circle(disc, 1.14, { ZIndex = 3 })
-    piece(mark, 0.34, 0.53, 0.10, 0.38)
-    piece(mark, 0.66, 0.53, 0.10, 0.38)
-    piece(mark, 0.34, 0.34, 0.0707, 0.0707, 45) -- pointed tower tops
-    piece(mark, 0.66, 0.34, 0.0707, 0.0707, 45)
-    piece(mark, 0.42, 0.58, 0.226, 0.085, -45) -- roof
-    piece(mark, 0.58, 0.58, 0.226, 0.085, 45)
-    piece(mark, 0.5, 0.5, 0.083, 0.083, 45) -- tip of the roof
-    piece(mark, 0.5, 0.325, 0.065, 0.065, 45) -- diamond
+    -- two rounded-square outlines turning against each other (they form a moving star)
+    local frameA = square(root, 0.54, 0)
+    new("UIStroke", { Color = RED, Thickness = math.max(1.5, size * 0.011) }, frameA)
+    spin(frameA, 16, 360)
+    local frameB = square(root, 0.54, 45)
+    new("UIStroke", { Color = WHITE, Transparency = 0.55, Thickness = math.max(1, size * 0.007) }, frameB)
+    spin(frameB, 16, -360)
+
+    -- centre: red diamond with a white edge and the letter H
+    local diamond = square(root, 0.38, 45, { BackgroundTransparency = 0, BackgroundColor3 = WHITE, ZIndex = 2 })
+    new("UIGradient", { Color = ColorSequence.new(RED, RED_DARK), Rotation = 10 }, diamond)
+    new("UIStroke", { Color = WHITE, Thickness = math.max(1.5, size * 0.012) }, diamond)
+
+    local letter = new("TextLabel", {
+        AnchorPoint = CENTER,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(0.3, 0.3),
+        BackgroundTransparency = 1,
+        Text = "H",
+        TextColor3 = WHITE,
+        TextScaled = true,
+        Font = Enum.Font.GothamBlack,
+        ZIndex = 3,
+    }, root)
+    pcall(function() -- heavy italic if this client supports FontFace
+        letter.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Heavy, Enum.FontStyle.Italic)
+    end)
 
     -- pop in, then breathe
     local popIn = TweenService:Create(scale, TweenInfo.new(0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
