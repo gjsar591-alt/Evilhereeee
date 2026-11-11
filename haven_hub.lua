@@ -275,12 +275,15 @@
           tabIndex = tabIndex + 1
           -- زر التبويب: أيقونة وتحتها اسم قصير
           local shortName = string.match(tSettings.Name, "^[%w]+") or tSettings.Name
-          local tabSwitcher = Create("TextButton", {Name = "TabSwitcher", Text = "", AutoButtonColor = false, BackgroundColor3 = Theme.Accent, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 48), LayoutOrder = tabIndex, Parent = sectionTabSwitchers}, {
+          local tabSwitcher = Create("TextButton", {Name = "TabSwitcher", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 52), LayoutOrder = tabIndex, Parent = sectionTabSwitchers})
+          local tabTile = Create("Frame", {Name = "TabTile", AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = Theme.CardBg, BorderSizePixel = 0, Position = UDim2.new(0.5, 0, 0, 2), Size = UDim2.fromOffset(40, 32), Parent = tabSwitcher}, {
             Create("UICorner", {CornerRadius = UDim.new(0, 10)})
           })
-          local tabStroke = Create("UIStroke", {Name = "TabSwitcherUIStroke", ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Theme.Accent, Transparency = 1, Parent = tabSwitcher})
-          local tabImage = tSettings.Image and Create("ImageLabel", {Name = "TabImage", Image = tSettings.Image, ImageColor3 = Theme.Text, ImageTransparency = 0.5, AnchorPoint = Vector2.new(0.5, 0), BackgroundTransparency = 1, Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(18, 18), Parent = tabSwitcher})
-          local tabSwitcherName = Create("TextLabel", {Name = "TabSwitcherName", FontFace = InterFont(Enum.FontWeight.SemiBold), Text = shortName, TextColor3 = Theme.Text, TextSize = 8, TextTransparency = 0.5, TextTruncate = Enum.TextTruncate.AtEnd, BackgroundTransparency = 1, Position = UDim2.fromOffset(2, tabImage and 30 or 18), Size = UDim2.new(1, -4, 0, 12), Parent = tabSwitcher})
+          local tabStroke = Create("UIStroke", {Name = "TabSwitcherUIStroke", ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Theme.StrokeIdle, Transparency = 0.45, Parent = tabTile})
+          local tabImage = tSettings.Image and Create("ImageLabel", {Name = "TabImage", Image = tSettings.Image, ImageColor3 = Theme.SubText, AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(20, 20), Parent = tabTile})
+          local tabSwitcherName = Create("TextLabel", {Name = "TabSwitcherName", FontFace = InterFont(Enum.FontWeight.SemiBold), Text = shortName, TextColor3 = Theme.SubText, TextSize = 8, TextTruncate = Enum.TextTruncate.AtEnd, BackgroundTransparency = 1, Position = UDim2.fromOffset(2, 37), Size = UDim2.new(1, -4, 0, 12), Parent = tabSwitcher})
+          tabSwitcher.MouseEnter:Connect(function() if currentTabInstance ~= tabs[tabSwitcher] then Tween(tabTile, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {BackgroundColor3 = Theme.CardHover}):Play() end end)
+          tabSwitcher.MouseLeave:Connect(function() if currentTabInstance ~= tabs[tabSwitcher] then Tween(tabTile, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {BackgroundColor3 = Theme.CardBg}):Play() end end)
 
           local elements1 = Create("Frame", {Name = "Elements", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1)})
           local elementsScrolling = Create("ScrollingFrame", {Name = "ElementsScrolling", AutomaticCanvasSize = Enum.AutomaticSize.Y, BottomImage = "", CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.Y, ScrollBarImageColor3 = Theme.Accent, ScrollBarImageTransparency = 0.3, ScrollBarThickness = 2, TopImage = "", BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), Parent = elements1})
@@ -589,22 +592,23 @@
             if currentTabInstance then currentTabInstance.Parent = nil end
             for _, v in pairs(tabSwitchersScrollingFrame:GetDescendants()) do
               if v.Name == "TabSwitcher" then
-                Tween(v, tabInfo, {BackgroundTransparency = 1}):Play()
-                local stroke = v:FindFirstChild("TabSwitcherUIStroke")
-                local image = v:FindFirstChild("TabImage")
+                local tile = v:FindFirstChild("TabTile")
+                local stroke = tile and tile:FindFirstChild("TabSwitcherUIStroke")
+                local image = tile and tile:FindFirstChild("TabImage")
                 local name = v:FindFirstChild("TabSwitcherName")
-                if stroke then Tween(stroke, tabInfo, {Transparency = 1}):Play() end
-                if image then Tween(image, tabInfo, {ImageTransparency = 0.5}):Play() end
-                if name then Tween(name, tabInfo, {TextTransparency = 0.5}):Play() end
+                if tile then Tween(tile, tabInfo, {BackgroundColor3 = Theme.CardBg}):Play() end
+                if stroke then Tween(stroke, tabInfo, {Transparency = 0.45}):Play() end
+                if image then Tween(image, tabInfo, {ImageColor3 = Theme.SubText}):Play() end
+                if name then Tween(name, tabInfo, {TextColor3 = Theme.SubText}):Play() end
               end
             end
             tabs[tabSwitcher].Parent = content
             currentTabInstance = tabs[tabSwitcher]
             currentTab.Text = string.upper(tSettings.Name)
-            Tween(tabSwitcher, tabInfo, {BackgroundTransparency = 0.82}):Play()
-            Tween(tabStroke, tabInfo, {Transparency = 0.35}):Play()
-            Tween(tabSwitcherName, tabInfo, {TextTransparency = 0}):Play()
-            if tabImage then Tween(tabImage, tabInfo, {ImageTransparency = 0}):Play() end
+            Tween(tabTile, tabInfo, {BackgroundColor3 = Theme.Accent}):Play()
+            Tween(tabStroke, tabInfo, {Transparency = 1}):Play()
+            Tween(tabSwitcherName, tabInfo, {TextColor3 = Theme.Text}):Play()
+            if tabImage then Tween(tabImage, tabInfo, {ImageColor3 = Theme.Text}):Play() end
           end
 
           tabSwitcher.MouseButton1Click:Connect(SelectCurrentTab)
@@ -1419,11 +1423,11 @@
   shared.tabs = {
     Main     = Vertex:Tab({Name = "Main & Farm", Image = "rbxassetid://10709811110"}),
     Roles    = Vertex:Tab({Name = "Combat & Roles", Image = "rbxassetid://10734975692"}),
-    Target   = Vertex:Tab({Name = "Target Control", Image = "rbxassetid://10709818534"}),
+    Target   = Vertex:Tab({Name = "Target Control", Image = "rbxassetid://10734977012"}),
     Visual   = Vertex:Tab({Name = "Visuals & ESP", Image = "rbxassetid://10723346959"}),
-    Player   = Vertex:Tab({Name = "LocalPlayer", Image = "rbxassetid://10747373176"}),
+    Player   = Vertex:Tab({Name = "LocalPlayer", Image = "rbxassetid://10734920149"}),
     Tracker  = Vertex:Tab({Name = "Webhooks", Image = "rbxassetid://10734943902"}),
-    Settings = Vertex:Tab({Name = "Settings", Image = "rbxassetid://10734950309"})
+    Settings = Vertex:Tab({Name = "Settings", Image = "rbxassetid://10734963191"})
   }
 
   repeat task.wait() until shared.loaded
