@@ -21,6 +21,26 @@
   local UserInputService = Services.UserInputService
   local ReplicatedStorage = Services.ReplicatedStorage
 
+  -- الإغلاق الكامل: كل اتصال (Connect) يتم عبر هذي الخدمات ينحفظ هنا عشان ينفصل كله عند الإغلاق
+  local HavenConnections = {}
+  local function TrackedService(real)
+    return setmetatable({}, {__index = function(_, key)
+      local value = real[key]
+      if typeof(value) == "RBXScriptSignal" then
+        return {
+          Connect = function(_, fn) local conn = value:Connect(fn) table.insert(HavenConnections, conn) return conn end,
+          Wait = function() return value:Wait() end
+        }
+      elseif type(value) == "function" then
+        return function(_, ...) return value(real, ...) end
+      end
+      return value
+    end})
+  end
+  Players = TrackedService(Players)
+  RunService = TrackedService(RunService)
+  UserInputService = TrackedService(UserInputService)
+
   -- توافق مع كل المنفذات: يجرب gethui ثم CoreGui ثم PlayerGui
   local function SafeParentGui(guiObj)
     local targets = {
@@ -365,7 +385,7 @@
       return id, volume
     end
     local function PlaySound(kind)
-      if not soundsEnabled then return end
+      if haven.Closed or not soundsEnabled then return end
       pcall(function()
         local sound = soundCache[kind]
         if not sound then
@@ -504,6 +524,8 @@
       local exit = ControlButton("Exit", 2, Theme.Accent)
       Create("TextLabel", {FontFace = InterFont(Enum.FontWeight.Bold), Text = "X", TextColor3 = Theme.Text, TextSize = 12, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 3, Parent = exit})
 
+      local previousElite
+      pcall(function() previousElite = LocalPlayer:GetAttribute("Elite") end)
       LocalPlayer:SetAttribute("Elite", true)
 
       task.spawn(function()
@@ -962,7 +984,7 @@
                 repeat task.wait(1)
                   pcall(function()
                     Services.CoreGui.RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
-                      if child.Name == "ErrorPrompt" then Services.TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end
+                      if child.Name == "ErrorPrompt" and not haven.Closed and Options.AutoRejoin:GetValue() then Services.TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end
                     end)
                   end)
                 until not Options.AutoRejoin:GetValue()
@@ -1089,9 +1111,22 @@
 
       -- زر الإغلاق النهائي: يطفّي كل المميزات الشغالة ويحذف الواجهة وزر الشعار
       local function CloseHub()
+        -- 1) نطفّي كل المميزات الشغالة
         for _, opt in pairs(haven.Options) do
           if opt.Class == "Toggle" and opt.State then pcall(function() opt:UpdateState(false) end) end
         end
+        -- 2) من هنا ما يطلع أي صوت ولا يشتغل أي اختصار
+        haven.Closed = true
+        pcall(function() RunService:UnbindFromRenderStep("HavenAimLock") end)
+        for _, conn in ipairs(HavenConnections) do pcall(function() conn:Disconnect() end) end
+        for i = #HavenConnections, 1, -1 do HavenConnections[i] = nil end
+        for kind, sound in pairs(soundCache) do
+          pcall(function() sound:Stop() end)
+          pcall(function() sound:Destroy() end)
+          soundCache[kind] = nil
+        end
+        -- 3) نرجّع اللي غيّرناه ونحذف كل الواجهات
+        pcall(function() LocalPlayer:SetAttribute("Elite", previousElite) end)
         screenGui:Destroy() pcall(function() LocalPlayer.PlayerGui.HavenClickButton:Destroy() end)
         shared.loaded = nil shared.VertexLoaded = nil
       end
@@ -2735,11 +2770,11 @@
     end
   end)
 
-  LocalPlayer.CharacterAdded:Connect(function()
+  table.insert(HavenConnections, LocalPlayer.CharacterAdded:Connect(function()
     isInvis = false
     local chair = workspace:FindFirstChild("invischair")
     if chair then chair:Destroy() end
-  end)
+  end))
 
   shared.Player:Toggle("AntiFling", "Anti Fling", function(arg1)
     if arg1 then
@@ -2861,6 +2896,18 @@
     if aimLockAdded then aimLockAdded:Disconnect() end
     if aimLockRemoving then aimLockRemoving:Disconnect() end
     shared.speed = nil
+    -- تنظيف كامل بعد الإغلاق: ما يبقى أي أثر في اللعبة
+    pcall(function() local gunDrop = GetGunDrop() if gunDrop and gunDrop:FindFirstChild("GunESP") then gunDrop.GunESP:Destroy() end end)
+    pcall(function() local chair = workspace:FindFirstChild("invischair") if chair then chair:Destroy() end end)
+    pcall(DisableFloat)
+    pcall(ClearESP)
+    pcall(function() RunService:Set3dRenderingEnabled(true) end)
+    pcall(function()
+      local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+      if hum then workspace.CurrentCamera.CameraSubject = hum end
+    end)
+    pcall(function() if aimLockGui then aimLockGui:Destroy() end end)
+    for _, key in ipairs({"tabs", "Main", "Roles", "Target", "Visual", "Player", "Tracker", "Premium", "loaded", "done"}) do shared[key] = nil end
   end)
 
   shared.tabs.Main:Select(shared.Main)
@@ -2881,6 +2928,7 @@
   -- حماية السقوط في الـ Void
   local fallenHeight = workspace.FallenPartsDestroyHeight
   while task.wait(0.1) do
+    if shared.VertexLoaded ~= true then break end
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
