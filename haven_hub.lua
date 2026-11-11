@@ -1231,6 +1231,7 @@
     local built = pcall(function()
       local logoAsset
       pcall(function() logoAsset = GetLogoAsset() end)
+      loader.LogoAsset = logoAsset
 
       gui = Instance.new("ScreenGui")
       gui.Name = "HavenHubLoader"
@@ -1365,6 +1366,23 @@
     AcrylicBlur = true
   })
   if HavenLoader.Active then Window:SetState(false) end
+
+  -- زر الفتح/الإغلاق: شعار Haven Hub بدل نص HH (يبقى HH لو الصورة غير متوفرة)
+  pcall(function()
+    if not HavenLoader.LogoAsset then return end
+    local clickButton = LocalPlayer.PlayerGui.HavenClickButton.ClickButton
+    local logo = Instance.new("ImageLabel")
+    logo.Name = "Logo"
+    logo.AnchorPoint = Vector2.new(0.5, 0.5)
+    logo.Position = UDim2.fromScale(0.5, 0.5)
+    logo.Size = UDim2.new(1, -4, 1, -4)
+    logo.BackgroundTransparency = 1
+    logo.ScaleType = Enum.ScaleType.Fit
+    logo.Image = HavenLoader.LogoAsset
+    logo.ZIndex = clickButton.ZIndex
+    logo.Parent = clickButton
+    clickButton.Text = ""
+  end)
   HavenLoader:SetProgress(50)
 
   Vertex = Window:TabGroup()
