@@ -1,0 +1,1525 @@
+{
+  "script_info": {
+    "name": "HAVEN TEAM V2",
+    "size_bytes": 124710,
+    "string_count": 461,
+    "vm_references": 351,
+    "obfuscation": "IronBrew2-style VM (276+ opcodes)",
+    "entry_point": "o(4927100, {})"
+  },
+  "auth": {
+    "url": "https://haven-auth.lsamh9034.workers.dev/checkban",
+    "key": "HAVEN-KEY-2025",
+    "method": "game:HttpGet(url)",
+    "response_format": "{\"banned\": false/true}",
+    "url_note": "URL constructed at runtime via 20 string concatenation operations in VM"
+  },
+  "string_table": {
+    "3": {
+      "text": "h9Jfg77MjTCrs",
+      "hex": "68394a666737374d6a54437273",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "4": {
+      "text": "l3v4XRj7i2DL",
+      "hex": "6c33763458526a376932444c",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "5": {
+      "text": "wunC3zT1BVo5",
+      "hex": "77756e43337a543142566f35",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "9": {
+      "text": "__len",
+      "hex": "5f5f6c656e",
+      "length": 5,
+      "printable_ratio": 1.0
+    },
+    "15": {
+      "text": "table",
+      "hex": "7461626c65",
+      "length": 5,
+      "printable_ratio": 1.0
+    },
+    "16": {
+      "text": "F",
+      "hex": "46",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "17": {
+      "text": "UrlEncode",
+      "hex": "55726c456e636f6465",
+      "length": 9,
+      "printable_ratio": 1.0
+    },
+    "18": {
+      "text": "x0Xr0gPTcKID",
+      "hex": "7830587230675054634b4944",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "21": {
+      "text": "typeof",
+      "hex": "747970656f66",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "23": {
+      "text": "[binary:]",
+      "hex": "",
+      "length": 5,
+      "printable_ratio": 0.4
+    },
+    "24": {
+      "text": "i2d0IHEM4LmsMp",
+      "hex": "693264304948454d344c6d734d70",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "25": {
+      "text": "AWR0rtFSffF6ZE",
+      "hex": "4157523072744653666646365a45",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "27": {
+      "text": "eZe9laeFkvZI",
+      "hex": "655a65396c6165466b765a49",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "28": {
+      "text": "oyJrifjEJZLi",
+      "hex": "6f794a7269666a454a5a4c69",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "29": {
+      "text": "rCBKJ5zXlNsAr",
+      "hex": "7243424b4a357a586c4e734172",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "30": {
+      "text": "gmatch",
+      "hex": "676d61746368",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "34": {
+      "text": "gsub",
+      "hex": "67737562",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "35": {
+      "text": "=",
+      "hex": "3d",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "37": {
+      "text": "-",
+      "hex": "2d",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "38": {
+      "text": "setclipboard",
+      "hex": "736574636c6970626f617264",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "40": {
+      "text": "l2",
+      "hex": "6c32",
+      "length": 2,
+      "printable_ratio": 1.0
+    },
+    "49": {
+      "text": "task",
+      "hex": "7461736b",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "50": {
+      "text": "Kick",
+      "hex": "4b69636b",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "53": {
+      "text": "[binary:18]",
+      "hex": "18",
+      "length": 1,
+      "printable_ratio": 0.0
+    },
+    "54": {
+      "text": "N6UAZfjFIw6cd",
+      "hex": "4e3655415a666a464977366364",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "56": {
+      "text": "ZDfJ7VLZlGpy",
+      "hex": "5a44664a37564c5a6c477079",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "58": {
+      "text": "61x83ByN3ZXZZG",
+      "hex": "363178383342794e335a585a5a47",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "66": {
+      "text": "wADCVkt3asvWbG",
+      "hex": "77414443566b7433617376576247",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "70": {
+      "text": "KJ1M4ilP1qJsOm",
+      "hex": "4b4a314d34696c5031714a734f6d",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "78": {
+      "text": "PappL3lkmPqUk",
+      "hex": "506170704c336c6b6d5071556b",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "79": {
+      "text": "ipairs",
+      "hex": "697061697273",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "80": {
+      "text": "error",
+      "hex": "6572726f72",
+      "length": 5,
+      "printable_ratio": 1.0
+    },
+    "82": {
+      "text": "Color3",
+      "hex": "436f6c6f7233",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "83": {
+      "text": "string",
+      "hex": "737472696e67",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "89": {
+      "text": "HttpGet",
+      "hex": "48747470476574",
+      "length": 7,
+      "printable_ratio": 1.0
+    },
+    "91": {
+      "text": "gdQ5wUfcEEhW",
+      "hex": "676451357755666345456857",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "92": {
+      "text": "math",
+      "hex": "6d617468",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "99": {
+      "text": "BJgN4jyfqip5",
+      "hex": "424a674e346a796671697035",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "102": {
+      "text": "rcw",
+      "hex": "726377",
+      "length": 3,
+      "printable_ratio": 1.0
+    },
+    "104": {
+      "text": "[binary:1d]",
+      "hex": "1d",
+      "length": 1,
+      "printable_ratio": 0.0
+    },
+    "108": {
+      "text": "pcall",
+      "hex": "7063616c6c",
+      "length": 5,
+      "printable_ratio": 1.0
+    },
+    "110": {
+      "text": "c3kOH8DFQq0v6u",
+      "hex": "63336b4f48384446517130763675",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "111": {
+      "text": "GetPlayers",
+      "hex": "476574506c6179657273",
+      "length": 10,
+      "printable_ratio": 1.0
+    },
+    "112": {
+      "text": "UDim2",
+      "hex": "5544696d32",
+      "length": 5,
+      "printable_ratio": 1.0
+    },
+    "113": {
+      "text": "RXVqPZX6yV7u",
+      "hex": "52585671505a583679563775",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "115": {
+      "text": "5hpaHMuzz6g4",
+      "hex": "35687061484d757a7a366734",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "117": {
+      "text": "8xW3srj2hmH7GT",
+      "hex": "3878573373726a32686d48374754",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "120": {
+      "text": "Q3HERlfhPliXRT",
+      "hex": "51334845526c6668506c69585254",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "121": {
+      "text": "Create",
+      "hex": "437265617465",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "122": {
+      "text": "qP1gNVaFeGmu",
+      "hex": "715031674e56614665476d75",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "126": {
+      "text": "Flk5z4Z8huKCS",
+      "hex": "466c6b357a345a3868754b4353",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "128": {
+      "text": ".3\u0006",
+      "hex": "2e3306",
+      "length": 3,
+      "printable_ratio": 0.67
+    },
+    "129": {
+      "text": "c",
+      "hex": "63",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "130": {
+      "text": "Lerp",
+      "hex": "4c657270",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "137": {
+      "text": "Enum",
+      "hex": "456e756d",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "139": {
+      "text": "Destroy",
+      "hex": "44657374726f79",
+      "length": 7,
+      "printable_ratio": 1.0
+    },
+    "140": {
+      "text": "x",
+      "hex": "78",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "145": {
+      "text": "GdZqCInRyo6E",
+      "hex": "47645a7143496e52796f3645",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "147": {
+      "text": "concat",
+      "hex": "636f6e636174",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "149": {
+      "text": "floor",
+      "hex": "666c6f6f72",
+      "length": 5,
+      "printable_ratio": 1.0
+    },
+    "150": {
+      "text": "Xka7Cy91cJEQ",
+      "hex": "586b613743793931634a4551",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "154": {
+      "text": "UhfI41gmZRyE7",
+      "hex": "556866493431676d5a52794537",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "155": {
+      "text": "+K^I",
+      "hex": "2b4b5e49",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "156": {
+      "text": "AlDeeEo6yF610",
+      "hex": "416c446565456f367946363130",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "157": {
+      "text": "islclosure",
+      "hex": "69736c636c6f73757265",
+      "length": 10,
+      "printable_ratio": 1.0
+    },
+    "160": {
+      "text": "tuGv",
+      "hex": "74754776",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "162": {
+      "text": "AzI7BJkBWxVH5k",
+      "hex": "417a4937424a6b4257785648356b",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "166": {
+      "text": "p3DUdOQM",
+      "hex": "70334455644f514d",
+      "length": 8,
+      "printable_ratio": 1.0
+    },
+    "167": {
+      "text": "rawget",
+      "hex": "726177676574",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "169": {
+      "text": "qTlKNYEtsR6e",
+      "hex": "71546c4b4e59457473523665",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "182": {
+      "text": "GRLAjQzPtRH2",
+      "hex": "47524c416a517a5074524832",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "183": {
+      "text": "cYe6Pitxuxuh45",
+      "hex": "6359653650697478757875683435",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "184": {
+      "text": "0hdiuAryoC0h",
+      "hex": "30686469754172796f433068",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "186": {
+      "text": "o",
+      "hex": "6f",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "187": {
+      "text": "Q9hIowrNaaja",
+      "hex": "513968496f77724e61616a61",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "190": {
+      "text": "SPVyAcVcC1O7PY",
+      "hex": "535056794163566343314f375059",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "191": {
+      "text": "fhwRPozVFd228",
+      "hex": "66687752506f7a564664323238",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "192": {
+      "text": "UDL0RUYuiekrwR",
+      "hex": "55444c305255597569656b727752",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "193": {
+      "text": "_ENV",
+      "hex": "5f454e56",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "194": {
+      "text": "Z2IAu7xPeVU6Q",
+      "hex": "5a324941753778506556553651",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "198": {
+      "text": "EFLEIqjsJWgGf",
+      "hex": "45464c4549716a734a57674766",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "200": {
+      "text": "u",
+      "hex": "75",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "204": {
+      "text": "char",
+      "hex": "63686172",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "205": {
+      "text": "oErei7iIakJZk",
+      "hex": "6f45726569376949616b4a5a6b",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "207": {
+      "text": "tkUaum51oFTCDl",
+      "hex": "746b5561756d35316f465443446c",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "208": {
+      "text": "debug",
+      "hex": "6465627567",
+      "length": 5,
+      "printable_ratio": 1.0
+    },
+    "209": {
+      "text": "yQgppOqWQmbQXX",
+      "hex": "79516770704f7157516d62515858",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "210": {
+      "text": "Hzu4uRjdkG7f",
+      "hex": "487a753475526a646b473766",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "215": {
+      "text": "y",
+      "hex": "79",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "216": {
+      "text": "Od3Hii1UvyrO",
+      "hex": "4f643348696931557679724f",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "219": {
+      "text": "mqV",
+      "hex": "6d7156",
+      "length": 3,
+      "printable_ratio": 1.0
+    },
+    "220": {
+      "text": "Vector3",
+      "hex": "566563746f7233",
+      "length": 7,
+      "printable_ratio": 1.0
+    },
+    "224": {
+      "text": "Instance",
+      "hex": "496e7374616e6365",
+      "length": 8,
+      "printable_ratio": 1.0
+    },
+    "230": {
+      "text": "Connect",
+      "hex": "436f6e6e656374",
+      "length": 7,
+      "printable_ratio": 1.0
+    },
+    "231": {
+      "text": "[binary:05]",
+      "hex": "05",
+      "length": 1,
+      "printable_ratio": 0.0
+    },
+    "233": {
+      "text": "lFz6LFfbcaQNm9",
+      "hex": "6c467a364c4666626361514e6d39",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "234": {
+      "text": "unpack",
+      "hex": "756e7061636b",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "237": {
+      "text": "remove",
+      "hex": "72656d6f7665",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "239": {
+      "text": "JSONDecode",
+      "hex": "4a534f4e4465636f6465",
+      "length": 10,
+      "printable_ratio": 1.0
+    },
+    "242": {
+      "text": "cIofB2DWPIU0",
+      "hex": "63496f664232445750495530",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "246": {
+      "text": "tonumber",
+      "hex": "746f6e756d626572",
+      "length": 8,
+      "printable_ratio": 1.0
+    },
+    "247": {
+      "text": "bdGAHArOOhwc",
+      "hex": "626447414841724f4f687763",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "249": {
+      "text": "}",
+      "hex": "7d",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "251": {
+      "text": "J",
+      "hex": "4a",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "254": {
+      "text": "__metatable",
+      "hex": "5f5f6d6574617461626c65",
+      "length": 11,
+      "printable_ratio": 1.0
+    },
+    "259": {
+      "text": "QQDyzlGL7eEhO",
+      "hex": "515144797a6c474c376545684f",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "262": {
+      "text": "cUN5YpdFYiOq",
+      "hex": "63554e355970644659694f71",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "269": {
+      "text": "UDim",
+      "hex": "5544696d",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "271": {
+      "text": "K4q3aFp6H2kI",
+      "hex": "4b3471336146703648326b49",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "272": {
+      "text": "TweenInfo",
+      "hex": "547765656e496e666f",
+      "length": 9,
+      "printable_ratio": 1.0
+    },
+    "273": {
+      "text": "1SzHU1hhtY4SUN",
+      "hex": "31537a485531686874593453554e",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "276": {
+      "text": "[binary:0d]",
+      "hex": "0d",
+      "length": 1,
+      "printable_ratio": 0.0
+    },
+    "277": {
+      "text": "Disconnect",
+      "hex": "446973636f6e6e656374",
+      "length": 10,
+      "printable_ratio": 1.0
+    },
+    "284": {
+      "text": ":",
+      "hex": "3a",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "290": {
+      "text": "setmetatable",
+      "hex": "7365746d6574617461626c65",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "292": {
+      "text": "b2o1n69OK5iq",
+      "hex": "62326f316e36394f4b356971",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "296": {
+      "text": "0UksvW1JVboQuS",
+      "hex": "30556b737657314a56626f517553",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "300": {
+      "text": "GIpPeKUMYuTYr",
+      "hex": "47497050654b554d5975545972",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "301": {
+      "text": "warn",
+      "hex": "7761726e",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "302": {
+      "text": "I",
+      "hex": "49",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "304": {
+      "text": "Mp1XJnUbAVMm",
+      "hex": "4d7031584a6e556241564d6d",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "305": {
+      "text": "[binary:]",
+      "hex": "",
+      "length": 3,
+      "printable_ratio": 0.33
+    },
+    "307": {
+      "text": "xZF0x",
+      "hex": "785a463078",
+      "length": 5,
+      "printable_ratio": 1.0
+    },
+    "308": {
+      "text": "lwAtT0tu8hp4",
+      "hex": "6c7741745430747538687034",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "309": {
+      "text": "VaxxFshwomfbV",
+      "hex": "56617878467368776f6d666256",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "319": {
+      "text": "TQ3n7eSAILoO",
+      "hex": "5451336e37655341494c6f4f",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "326": {
+      "text": "UZsd8gWN4Gu6ga",
+      "hex": "555a73643867574e344775366761",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "329": {
+      "text": "1E2RwOJCQrfaZ7",
+      "hex": "31453252774f4a43517266615a37",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "330": {
+      "text": "game",
+      "hex": "67616d65",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "331": {
+      "text": "0IWLPmqXWGwBn",
+      "hex": "3049574c506d7158574777426e",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "333": {
+      "text": "JshWNO5iJdz7Cy",
+      "hex": "4a7368574e4f35694a647a374379",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "335": {
+      "text": "W",
+      "hex": "57",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "337": {
+      "text": "type",
+      "hex": "74797065",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "338": {
+      "text": "R7E38sEVC5hC",
+      "hex": "523745333873455643356843",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "339": {
+      "text": "Z1PDS7WvnCEnqD",
+      "hex": "5a315044533757766e43456e7144",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "340": {
+      "text": "random",
+      "hex": "72616e646f6d",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "341": {
+      "text": "__gc",
+      "hex": "5f5f6763",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "343": {
+      "text": "aPM\u0013",
+      "hex": "61504d13",
+      "length": 4,
+      "printable_ratio": 0.75
+    },
+    "344": {
+      "text": "__index",
+      "hex": "5f5f696e646578",
+      "length": 7,
+      "printable_ratio": 1.0
+    },
+    "345": {
+      "text": "M21RkMGpVmui",
+      "hex": "4d3231526b4d4770566d7569",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "349": {
+      "text": "TWj7ylXR2BYFS",
+      "hex": "54576a37796c58523242594653",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "354": {
+      "text": "hLOOTdCcrLx1k",
+      "hex": "684c4f4f54644363724c78316b",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "357": {
+      "text": "kdhPCuPEko2n",
+      "hex": "6b646850437550456b6f326e",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "358": {
+      "text": "GetService",
+      "hex": "47657453657276696365",
+      "length": 10,
+      "printable_ratio": 1.0
+    },
+    "360": {
+      "text": "OdBHt8Rbv65u43",
+      "hex": "4f64424874385262763635753433",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "361": {
+      "text": "tostring",
+      "hex": "746f737472696e67",
+      "length": 8,
+      "printable_ratio": 1.0
+    },
+    "362": {
+      "text": "isfunctionhooked",
+      "hex": "697366756e6374696f6e686f6f6b6564",
+      "length": 16,
+      "printable_ratio": 1.0
+    },
+    "363": {
+      "text": "u95VMbZvA9e85",
+      "hex": "753935564d625a764139653835",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "364": {
+      "text": "TvOBnLIZWbO1tK",
+      "hex": "54764f426e4c495a57624f31744b",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "368": {
+      "text": "yQ6AjG",
+      "hex": "795136416a47",
+      "length": 6,
+      "printable_ratio": 1.0
+    },
+    "369": {
+      "text": "[binary:]",
+      "hex": "",
+      "length": 0,
+      "printable_ratio": 0.0
+    },
+    "370": {
+      "text": "ZeBH4XbMCWxy0g",
+      "hex": "5a6542483458624d435778793067",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "377": {
+      "text": "PEhRgH4HPnGbX",
+      "hex": "5045685267483448506e476258",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "379": {
+      "text": "getgenv",
+      "hex": "67657467656e76",
+      "length": 7,
+      "printable_ratio": 1.0
+    },
+    "383": {
+      "text": "getfenv",
+      "hex": "67657466656e76",
+      "length": 7,
+      "printable_ratio": 1.0
+    },
+    "384": {
+      "text": "_G",
+      "hex": "5f47",
+      "length": 2,
+      "printable_ratio": 1.0
+    },
+    "388": {
+      "text": "bRwGUGYtI41Jx",
+      "hex": "62527747554759744934314a78",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "390": {
+      "text": "'",
+      "hex": "27",
+      "length": 1,
+      "printable_ratio": 1.0
+    },
+    "391": {
+      "text": ":(%d*):",
+      "hex": "3a2825642a293a",
+      "length": 7,
+      "printable_ratio": 1.0
+    },
+    "392": {
+      "text": "OzlH1R8IdgHv7",
+      "hex": "4f7a6c48315238496467487637",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "394": {
+      "text": "pairs",
+      "hex": "7061697273",
+      "length": 5,
+      "printable_ratio": 1.0
+    },
+    "395": {
+      "text": "QNXv0eUdHKx4",
+      "hex": "514e587630655564484b7834",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "396": {
+      "text": "BmSW4zepXcZMN",
+      "hex": "426d5357347a657058635a4d4e",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "397": {
+      "text": "l1",
+      "hex": "6c31",
+      "length": 2,
+      "printable_ratio": 1.0
+    },
+    "405": {
+      "text": "ElA3Y9GF0BnYz",
+      "hex": "456c41335939474630426e597a",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "407": {
+      "text": "BoNs5JTmUlsHdj",
+      "hex": "426f4e73354a546d556c7348646a",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "408": {
+      "text": "[binary:03]",
+      "hex": "03",
+      "length": 1,
+      "printable_ratio": 0.0
+    },
+    "410": {
+      "text": "KfZ2vEXHZpgXH",
+      "hex": "4b665a32764558485a70675848",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "412": {
+      "text": "Tamper Detected!",
+      "hex": "54616d70657220446574656374656421",
+      "length": 16,
+      "printable_ratio": 1.0
+    },
+    "416": {
+      "text": "rTxO5rP6jmti",
+      "hex": "7254784f357250366a6d7469",
+      "length": 12,
+      "printable_ratio": 1.0
+    },
+    "421": {
+      "text": "FindFirstChild",
+      "hex": "46696e6446697273744368696c64",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "423": {
+      "text": "aVz3WGxXC6Z8T",
+      "hex": "61567a335747785843365a3854",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "425": {
+      "text": "Play",
+      "hex": "506c6179",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "439": {
+      "text": "ysQezM4rr3AVtV",
+      "hex": "797351657a4d3472723341567456",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "441": {
+      "text": "gSqNRUBiaV6Olh",
+      "hex": "6753714e525542696156364f6c68",
+      "length": 14,
+      "printable_ratio": 1.0
+    },
+    "445": {
+      "text": "byte",
+      "hex": "62797465",
+      "length": 4,
+      "printable_ratio": 1.0
+    },
+    "452": {
+      "text": "wtE61klAG4OJ1",
+      "hex": "77744536316b6c4147344f4a31",
+      "length": 13,
+      "printable_ratio": 1.0
+    },
+    "458": {
+      "text": "b8ashv5DvDUbYK",
+      "hex": "623861736876354476445562594b",
+      "length": 14,
+      "printable_ratio": 1.0
+    }
+  },
+  "vm_string_references": {
+    "-34168": "l3v4XRj7i2DL",
+    "-34167": "wunC3zT1BVo5",
+    "-34166": "[error]",
+    "-34165": "[error]",
+    "-34163": "__len",
+    "-34161": "[error]",
+    "-34160": "[error]",
+    "-34159": "[error]",
+    "-34158": "[error]",
+    "-34157": "table",
+    "-34156": "F",
+    "-34155": "UrlEncode",
+    "-34154": "x0Xr0gPTcKID",
+    "-34153": "[error]",
+    "-34152": "[error]",
+    "-34151": "typeof",
+    "-34148": "i2d0IHEM4LmsMp",
+    "-34145": "eZe9laeFkvZI",
+    "-34144": "oyJrifjEJZLi",
+    "-34143": "rCBKJ5zXlNsAr",
+    "-34142": "gmatch",
+    "-34141": "[error]",
+    "-34140": "[error]",
+    "-34139": "[error]",
+    "-34138": "gsub",
+    "-34136": "[error]",
+    "-34135": "-",
+    "-34134": "setclipboard",
+    "-34133": "[error]",
+    "-34132": "l2",
+    "-34130": "[error]",
+    "-34129": "[error]",
+    "-34128": "[error]",
+    "-34126": "[error]",
+    "-34125": "[error]",
+    "-34124": "[error]",
+    "-34123": "task",
+    "-34122": "Kick",
+    "-34121": "[error]",
+    "-34118": "N6UAZfjFIw6cd",
+    "-34117": "[error]",
+    "-34116": "ZDfJ7VLZlGpy",
+    "-34115": "[error]",
+    "-34114": "61x83ByN3ZXZZG",
+    "-34113": "[error]",
+    "-34112": "[error]",
+    "-34111": "[error]",
+    "-34110": "[error]",
+    "-34109": "[error]",
+    "-34107": "[error]",
+    "-34106": "wADCVkt3asvWbG",
+    "-34105": "[error]",
+    "-34103": "[error]",
+    "-34101": "[error]",
+    "-34100": "[error]",
+    "-34099": "[error]",
+    "-34098": "[error]",
+    "-34097": "[error]",
+    "-34096": "[error]",
+    "-34095": "[error]",
+    "-34094": "PappL3lkmPqUk",
+    "-34092": "error",
+    "-34091": "[error]",
+    "-34089": "string",
+    "-34088": "[error]",
+    "-34085": "[error]",
+    "-34083": "HttpGet",
+    "-34082": "[error]",
+    "-34081": "gdQ5wUfcEEhW",
+    "-34080": "math",
+    "-34079": "[error]",
+    "-34076": "[error]",
+    "-34075": "[error]",
+    "-34074": "[error]",
+    "-34073": "BJgN4jyfqip5",
+    "-34072": "[error]",
+    "-34071": "[error]",
+    "-34070": "rcw",
+    "-34069": "[error]",
+    "-34068": "[binary:1bytes]",
+    "-34066": "[error]",
+    "-34065": "[error]",
+    "-34064": "pcall",
+    "-34061": "GetPlayers",
+    "-34060": "UDim2",
+    "-34059": "RXVqPZX6yV7u",
+    "-34057": "5hpaHMuzz6g4",
+    "-34056": "[error]",
+    "-34055": "8xW3srj2hmH7GT",
+    "-34054": "[error]",
+    "-34052": "Q3HERlfhPliXRT",
+    "-34051": "Create",
+    "-34049": "[error]",
+    "-34048": "[error]",
+    "-34047": "[error]",
+    "-34045": "[error]",
+    "-34043": "c",
+    "-34040": "[error]",
+    "-34038": "[error]",
+    "-34037": "[error]",
+    "-34036": "[error]",
+    "-34035": "Enum",
+    "-34034": "[error]",
+    "-34033": "Destroy",
+    "-34032": "x",
+    "-34031": "[error]",
+    "-34030": "[error]",
+    "-34029": "[error]",
+    "-34026": "[error]",
+    "-34023": "floor",
+    "-34021": "[error]",
+    "-34020": "[error]",
+    "-34019": "[error]",
+    "-34018": "UhfI41gmZRyE7",
+    "-34017": "+K^I",
+    "-34016": "AlDeeEo6yF610",
+    "-34015": "islclosure",
+    "-34014": "[error]",
+    "-34012": "tuGv",
+    "-34011": "[error]",
+    "-34010": "AzI7BJkBWxVH5k",
+    "-34009": "[error]",
+    "-34008": "[error]",
+    "-34007": "[error]",
+    "-34005": "rawget",
+    "-34004": "[error]",
+    "-34003": "qTlKNYEtsR6e",
+    "-34002": "[error]",
+    "-34000": "[error]",
+    "-33999": "[error]",
+    "-33998": "[error]",
+    "-33997": "[error]",
+    "-33995": "[error]",
+    "-33993": "[error]",
+    "-33992": "[error]",
+    "-33991": "[error]",
+    "-33990": "GRLAjQzPtRH2",
+    "-33989": "cYe6Pitxuxuh45",
+    "-33985": "Q9hIowrNaaja",
+    "-33984": "[error]",
+    "-33983": "[error]",
+    "-33982": "SPVyAcVcC1O7PY",
+    "-33981": "fhwRPozVFd228",
+    "-33980": "UDL0RUYuiekrwR",
+    "-33979": "_ENV",
+    "-33978": "Z2IAu7xPeVU6Q",
+    "-33977": "[error]",
+    "-33976": "[error]",
+    "-33974": "EFLEIqjsJWgGf",
+    "-33972": "u",
+    "-33971": "[error]",
+    "-33970": "[error]",
+    "-33969": "[error]",
+    "-33968": "char",
+    "-33967": "oErei7iIakJZk",
+    "-33964": "debug",
+    "-33962": "Hzu4uRjdkG7f",
+    "-33961": "[error]",
+    "-33960": "[error]",
+    "-33958": "[error]",
+    "-33957": "y",
+    "-33956": "Od3Hii1UvyrO",
+    "-33954": "[error]",
+    "-33953": "mqV",
+    "-33952": "Vector3",
+    "-33951": "[error]",
+    "-33950": "[error]",
+    "-33949": "[error]",
+    "-33948": "Instance",
+    "-33947": "[error]",
+    "-33946": "[error]",
+    "-33945": "[error]",
+    "-33944": "[error]",
+    "-33943": "[error]",
+    "-33942": "Connect",
+    "-33941": "[binary:1bytes]",
+    "-33940": "[error]",
+    "-33939": "lFz6LFfbcaQNm9",
+    "-33938": "unpack",
+    "-33937": "[error]",
+    "-33936": "[error]",
+    "-33935": "remove",
+    "-33934": "[error]",
+    "-33933": "JSONDecode",
+    "-33932": "[error]",
+    "-33931": "[error]",
+    "-33930": "cIofB2DWPIU0",
+    "-33929": "[error]",
+    "-33927": "[error]",
+    "-33926": "tonumber",
+    "-33924": "[error]",
+    "-33921": "J",
+    "-33920": "[error]",
+    "-33919": "[error]",
+    "-33918": "__metatable",
+    "-33916": "[error]",
+    "-33915": "[error]",
+    "-33914": "[error]",
+    "-33913": "QQDyzlGL7eEhO",
+    "-33912": "[error]",
+    "-33911": "[error]",
+    "-33910": "cUN5YpdFYiOq",
+    "-33909": "[error]",
+    "-33907": "[error]",
+    "-33906": "[error]",
+    "-33905": "[error]",
+    "-33904": "[error]",
+    "-33902": "[error]",
+    "-33901": "K4q3aFp6H2kI",
+    "-33900": "TweenInfo",
+    "-33899": "1SzHU1hhtY4SUN",
+    "-33898": "[error]",
+    "-33897": "[error]",
+    "-33895": "Disconnect",
+    "-33894": "[error]",
+    "-33893": "[error]",
+    "-33891": "[error]",
+    "-33890": "[error]",
+    "-33889": "[error]",
+    "-33888": ":",
+    "-33885": "[error]",
+    "-33884": "[error]",
+    "-33883": "[error]",
+    "-33882": "setmetatable",
+    "-33881": "[error]",
+    "-33880": "b2o1n69OK5iq",
+    "-33879": "[error]",
+    "-33878": "[error]",
+    "-33877": "[error]",
+    "-33876": "0UksvW1JVboQuS",
+    "-33875": "[error]",
+    "-33874": "[error]",
+    "-33873": "[error]",
+    "-33871": "warn",
+    "-33870": "I",
+    "-33868": "Mp1XJnUbAVMm",
+    "-33867": "[binary:3bytes]",
+    "-33866": "[error]",
+    "-33865": "xZF0x",
+    "-33863": "VaxxFshwomfbV",
+    "-33862": "[error]",
+    "-33860": "[error]",
+    "-33859": "[error]",
+    "-33858": "[error]",
+    "-33857": "[error]",
+    "-33856": "[error]",
+    "-33852": "[error]",
+    "-33851": "[error]",
+    "-33850": "[error]",
+    "-33848": "[error]",
+    "-33847": "[error]",
+    "-33846": "UZsd8gWN4Gu6ga",
+    "-33844": "[error]",
+    "-33843": "1E2RwOJCQrfaZ7",
+    "-33842": "game",
+    "-33841": "0IWLPmqXWGwBn",
+    "-33840": "[error]",
+    "-33839": "JshWNO5iJdz7Cy",
+    "-33838": "[error]",
+    "-33836": "[error]",
+    "-33835": "type",
+    "-33833": "Z1PDS7WvnCEnqD",
+    "-33832": "random",
+    "-33831": "__gc",
+    "-33830": "[error]",
+    "-33828": "__index",
+    "-33826": "[error]",
+    "-33825": "[error]",
+    "-33823": "TWj7ylXR2BYFS",
+    "-33822": "[error]",
+    "-33821": "[error]",
+    "-33820": "[error]",
+    "-33819": "[error]",
+    "-33818": "hLOOTdCcrLx1k",
+    "-33817": "[error]",
+    "-33816": "[error]",
+    "-33815": "kdhPCuPEko2n",
+    "-33814": "GetService",
+    "-33813": "[error]",
+    "-33812": "OdBHt8Rbv65u43",
+    "-33811": "tostring",
+    "-33810": "isfunctionhooked",
+    "-33809": "u95VMbZvA9e85",
+    "-33807": "[error]",
+    "-33805": "[error]",
+    "-33804": "yQ6AjG",
+    "-33803": "[binary:0bytes]",
+    "-33802": "ZeBH4XbMCWxy0g",
+    "-33801": "[error]",
+    "-33800": "[error]",
+    "-33799": "[error]",
+    "-33798": "[error]",
+    "-33796": "[error]",
+    "-33795": "PEhRgH4HPnGbX",
+    "-33794": "[error]",
+    "-33792": "[error]",
+    "-33791": "[error]",
+    "-33789": "getfenv",
+    "-33788": "_G",
+    "-33787": "[error]",
+    "-33786": "[error]",
+    "-33784": "bRwGUGYtI41Jx",
+    "-33783": "[error]",
+    "-33782": "'",
+    "-33781": ":(%d*):",
+    "-33780": "OzlH1R8IdgHv7",
+    "-33779": "[error]",
+    "-33778": "pairs",
+    "-33775": "l1",
+    "-33774": "[error]",
+    "-33770": "[error]",
+    "-33769": "[error]",
+    "-33767": "ElA3Y9GF0BnYz",
+    "-33766": "[error]",
+    "-33764": "[binary:1bytes]",
+    "-33761": "[error]",
+    "-33759": "[error]",
+    "-33758": "[error]",
+    "-33757": "[error]",
+    "-33756": "rTxO5rP6jmti",
+    "-33755": "[error]",
+    "-33754": "[error]",
+    "-33753": "[error]",
+    "-33752": "[error]",
+    "-33751": "FindFirstChild",
+    "-33747": "Play",
+    "-33746": "[error]",
+    "-33745": "[error]",
+    "-33744": "[error]",
+    "-33743": "[error]",
+    "-33740": "[error]",
+    "-33739": "[error]",
+    "-33737": "[error]",
+    "-33734": "[error]",
+    "-33732": "[error]",
+    "-33730": "[error]",
+    "-33729": "[error]",
+    "-33727": "byte",
+    "-33725": "[error]",
+    "-33724": "[error]",
+    "-33723": "[error]",
+    "-33722": "[error]",
+    "-33721": "[error]",
+    "-33720": "wtE61klAG4OJ1",
+    "-33719": "[error]",
+    "-33718": "[error]",
+    "-33716": "[error]",
+    "-33715": "[error]",
+    "-33714": "b8ashv5DvDUbYK",
+    "-33713": "[error]",
+    "-33711": "[error]"
+  },
+  "api_usage": {
+    "roblox_services": [
+      "game",
+      "Players",
+      "HttpService",
+      "TweenService",
+      "RunService",
+      "UserInputService",
+      "ReplicatedStorage"
+    ],
+    "roblox_methods": [
+      "GetService",
+      "FindFirstChild",
+      "Connect",
+      "Disconnect",
+      "GetPlayers",
+      "Kick",
+      "Create",
+      "Destroy",
+      "Play"
+    ],
+    "roblox_types": [
+      "Instance",
+      "Vector3",
+      "UDim2",
+      "UDim",
+      "Color3",
+      "TweenInfo",
+      "Enum",
+      "BrickColor",
+      "NumberRange"
+    ],
+    "http_network": [
+      "HttpGet",
+      "JSONDecode",
+      "UrlEncode"
+    ],
+    "exploit_functions": [
+      "getgenv",
+      "getfenv",
+      "islclosure",
+      "isfunctionhooked",
+      "setclipboard",
+      "debug"
+    ],
+    "lua_standard": [
+      "table",
+      "string",
+      "math",
+      "pairs",
+      "ipairs",
+      "pcall",
+      "error",
+      "warn",
+      "tostring",
+      "tonumber",
+      "type",
+      "typeof",
+      "setmetatable",
+      "rawget",
+      "unpack",
+      "remove",
+      "concat",
+      "floor",
+      "random",
+      "char",
+      "byte",
+      "gsub",
+      "gmatch",
+      "task"
+    ],
+    "anti_tamper": [
+      "islclosure",
+      "isfunctionhooked",
+      ":(%d*):",
+      "Tamper Detected!",
+      "debug"
+    ],
+    "metamethods": [
+      "__index",
+      "__len",
+      "__gc",
+      "__metatable"
+    ]
+  }
+}
