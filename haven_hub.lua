@@ -1806,9 +1806,9 @@
 
   shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Closest Coins", "Closest + Reset", "Random Coins"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
   shared.Main:Divider()
-  shared.Main:SubLabel({Text = "SURVIVAL & ROUND UTILITIES"})
+  shared.Main:SubLabel({Text = "ROUND ASSISTS"})
 
-  shared.Main:Toggle("AutoGrab", "Automatically Grab Gun", function(arg1)
+  shared.Main:Toggle("AutoGrab", "Auto Grab Dropped Gun", function(arg1)
     if arg1 then
       repeat task.wait()
         pcall(function()
@@ -1822,7 +1822,7 @@
     end
   end)
 
-  shared.Main:Toggle("DodgeKnife", "Dodge Thrown Knife", function(arg1)
+  shared.Main:Toggle("DodgeKnife", "Knife Dodge", function(arg1)
     if arg1 then
       repeat task.wait()
         pcall(function()
@@ -1841,7 +1841,7 @@
     end
   end)
 
-  shared.Main:Toggle("EndRound", "Auto End Round", function(arg1)
+  shared.Main:Toggle("EndRound", "Auto Finish Round", function(arg1)
     if arg1 then
       Window:Notify({Title = "HAVEN HUB", Description = "Flings Murderer when you are not in the round.", Duration = 5})
       repeat task.wait()
@@ -1873,13 +1873,13 @@
   end})
 
   -- قسم Target
-  shared.Target:SubLabel({Text = "TARGET PLAYER CONTROLS"})
-  local TargetDropdown = shared.Target:Dropdown({Name = "Target", Search = true, Multi = false, Required = false, Options = {}, Default = {}, Callback = function() end}, "Target")
+  shared.Target:SubLabel({Text = "CHOSEN PLAYER"})
+  local TargetDropdown = shared.Target:Dropdown({Name = "Choose Player", Search = true, Multi = false, Required = false, Options = {}, Default = {}, Callback = function() end}, "Target")
   local res12 = Players.PlayerAdded:Connect(function(p) TargetDropdown:InsertOptions({p.Name}) end)
   local res13 = Players.PlayerRemoving:Connect(function(p) TargetDropdown:RemoveOptions({p.Name}) end)
   for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then TargetDropdown:InsertOptions({p.Name}) end end
 
-  shared.Target:Toggle("TargetFling", "Fling Target", function(arg1)
+  shared.Target:Toggle("TargetFling", "Fling Player", function(arg1)
     if arg1 then
       repeat task.wait()
         local target = Options.Target:GetValue() and Players:FindFirstChild(Options.Target:GetValue())
@@ -1889,7 +1889,7 @@
     end
   end)
 
-  shared.Target:Toggle("Spectate", "Spectate Target", function(arg1)
+  shared.Target:Toggle("Spectate", "Spectate Player", function(arg1)
     if arg1 then
       repeat task.wait()
         local target = Options.Target:GetValue() and Players:FindFirstChild(Options.Target:GetValue())
@@ -1899,7 +1899,7 @@
     end
   end)
 
-  shared.Target:Toggle("Annoy", "Loop Go To Target", function(arg1)
+  shared.Target:Toggle("Annoy", "Stick To Player", function(arg1)
     if arg1 then
       repeat task.wait()
         pcall(function()
@@ -1911,14 +1911,14 @@
     end
   end)
 
-  shared.Target:Button({Name = "Teleport To Target", Callback = function()
+  shared.Target:Button({Name = "Teleport To Player", Callback = function()
     local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     local tChar = Options.Target:GetValue() and workspace:FindFirstChild(Options.Target:GetValue())
     if myRoot and tChar and tChar:FindFirstChild("HumanoidRootPart") then myRoot.CFrame = tChar.HumanoidRootPart.CFrame end
   end})
 
   shared.Target:Divider()
-  shared.Target:Toggle("FlingSheriff", "Fling Sheriff", function(arg1)
+  shared.Target:Toggle("FlingSheriff", "Fling The Sheriff", function(arg1)
     if arg1 then
       repeat task.wait()
         local sPlayer = v15 and Players:FindFirstChild(v15)
@@ -1927,7 +1927,7 @@
     end
   end)
 
-  shared.Target:Toggle("FlingMurderer", "Fling Murderer", function(arg1)
+  shared.Target:Toggle("FlingMurderer", "Fling The Murderer", function(arg1)
     if arg1 then
       repeat task.wait()
         local mPlayer = v14 and Players:FindFirstChild(v14)
@@ -1937,15 +1937,15 @@
   end)
 
   -- قسم Visuals
-  shared.Visual:SubLabel({Text = "PLAYER & GUN ESP"})
-  shared.Visual:Toggle("Chams", "Player Role Chams", function(arg1)
+  shared.Visual:SubLabel({Text = "ESP OPTIONS"})
+  shared.Visual:Toggle("Chams", "Role ESP", function(arg1)
     if arg1 then
       repeat task.wait(0.2) UpdateChams() until not Options.Chams:GetValue()
       ClearESP()
     end
   end)
 
-  shared.Visual:Toggle("GunDropCham", "Dropped Gun Highlight", function(arg1)
+  shared.Visual:Toggle("GunDropCham", "Gun Drop ESP", function(arg1)
     while arg1 and Options.GunDropCham:GetValue() do
       task.wait(0.5)
       local gunDrop = GetGunDrop()
@@ -1956,14 +1956,14 @@
     end
   end)
 
-  shared.Visual:Toggle("Render", "Disable 3D Rendering When Unfocused", function(arg1)
+  shared.Visual:Toggle("Render", "Stop Rendering When Unfocused", function(arg1)
     if arg1 then
       UserInputService.WindowFocusReleased:Connect(function() if Options.Render:GetValue() then RunService:Set3dRenderingEnabled(false) end end)
       UserInputService.WindowFocused:Connect(function() RunService:Set3dRenderingEnabled(true) end)
     end
   end)
 
-  shared.Visual:Toggle("Names", "Player Name ESP", function()
+  shared.Visual:Toggle("Names", "Name ESP", function()
     while Options.Names:GetValue() do
       task.wait(0.5)
       for _, p in pairs(Players:GetPlayers()) do if p.Character then CreateNameESP(p) end end
@@ -1972,14 +1972,14 @@
   end)
 
   shared.Visual:Divider()
-  shared.Visual:Dropdown({Name = "Emote", Multi = false, Required = true, Options = {"ninja", "dab", "floss", "headless", "zen", "zombie", "sit"}, Default = 1, Callback = function() end}, "Emote")
-  shared.Visual:Toggle("AutoEmote", "Auto Emote", function()
+  shared.Visual:Dropdown({Name = "Pick Emote", Multi = false, Required = true, Options = {"ninja", "dab", "floss", "headless", "zen", "zombie", "sit"}, Default = 1, Callback = function() end}, "Emote")
+  shared.Visual:Toggle("AutoEmote", "Spam Emote", function()
     while Options.AutoEmote:GetValue() do task.wait(0.2) res:emote(Options.Emote:GetValue()) end
   end)
 
   -- قسم Combat & Roles
-  shared.Roles:SubLabel({Text = "MURDERER COMBAT"})
-  shared.Roles:Toggle("KillAura", "Knife Kill Aura", function(arg1)
+  shared.Roles:SubLabel({Text = "MURDERER MODE"})
+  shared.Roles:Toggle("KillAura", "Kill Aura", function(arg1)
     if arg1 then
       repeat task.wait()
         pcall(function()
@@ -1997,7 +1997,7 @@
     end
   end)
 
-  shared.Roles:Slider("AuraDistance", "Aura Distance", 5, 50, 5, "Percent", function() end)
+  shared.Roles:Slider("AuraDistance", "Kill Aura Range", 5, 50, 5, "Percent", function() end)
 
   KillAll = function()
     pcall(function()
@@ -2010,7 +2010,7 @@
     end)
   end
 
-  shared.Roles:Toggle("KillAll", "Auto Kill All", function(arg1)
+  shared.Roles:Toggle("KillAll", "Kill All Players", function(arg1)
     if arg1 then
       repeat task.wait()
         if v14 and (IsBagFull() or not Options.AutoFarm:GetValue()) and v14 == LocalPlayer.Name then KillAll() end
@@ -2019,8 +2019,8 @@
   end)
 
   shared.Roles:Divider()
-  shared.Roles:SubLabel({Text = "SHERIFF COMBAT"})
-  shared.Roles:Toggle("SilentAim", "Gun Silent Aim", function(arg1)
+  shared.Roles:SubLabel({Text = "SHERIFF MODE"})
+  shared.Roles:Toggle("SilentAim", "Silent Aim", function(arg1)
     if arg1 then
       local conn = nil
       repeat task.wait()
@@ -2045,7 +2045,7 @@
     end
   end)
 
-  shared.Roles:Toggle("KillM", "Kill Murderer (Blatant)", function(arg1)
+  shared.Roles:Toggle("KillM", "Instant Kill Murderer", function(arg1)
     if arg1 then
       repeat task.wait()
         if IsBagFull() or not Options.AutoFarm:GetValue() then EquipTool("Gun") ShootMurderer() end
@@ -2053,7 +2053,7 @@
     end
   end)
 
-  shared.Roles:Toggle("AutoShoot", "Auto Shoot Murderer", function(arg1)
+  shared.Roles:Toggle("AutoShoot", "Auto Shoot On Sight", function(arg1)
     if arg1 then
       repeat task.wait()
         pcall(function()
@@ -2068,7 +2068,7 @@
     end
   end)
 
-  shared.Roles:Keybind("ShootBind", "Shoot Murderer Keybind", function() pcall(function() EquipTool("Gun") ShootMurderer() end) end)
+  shared.Roles:Keybind("ShootBind", "Shoot Murderer Hotkey", function() pcall(function() EquipTool("Gun") ShootMurderer() end) end)
 
   -- قسم Webhooks
   shared.Tracker:SubLabel({Text = "DISCORD WEBHOOK INTEGRATION"})
