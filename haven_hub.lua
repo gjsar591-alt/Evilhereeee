@@ -1496,8 +1496,16 @@
   local tbl, roles = {}, {}
   local Noclipping, antifling, unboxConnection
 
+  -- الأسامي المعروضة في القوائم -> القيم الأصلية اللي يعتمد عليها السكربت واللعبة
+  local FarmModeIds = {["Closest Coin + XP"] = "Nearest + XP Farm", ["Closest Coin"] = "Nearest", ["Random Coins"] = "Randomize"}
+  local EmoteIds = {["Ninja"] = "ninja", ["Dab"] = "dab", ["Floss"] = "floss", ["Headless"] = "headless", ["Zen"] = "zen", ["Zombie"] = "zombie", ["Sit"] = "sit"}
+  local function GetFarmMode()
+    local value = Options.Mode and Options.Mode:GetValue()
+    return FarmModeIds[value] or value
+  end
+
   local res = {
-    emote = function(_, emoteName) pcall(function() ReplicatedStorage.Remotes.Misc.PlayEmote:Fire(emoteName) end) end,
+    emote = function(_, emoteName) pcall(function() ReplicatedStorage.Remotes.Misc.PlayEmote:Fire(EmoteIds[emoteName] or emoteName) end) end,
     fling = function(_, targetPlayer)
       pcall(function()
         local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -1659,7 +1667,7 @@
 
   local function ResetOrLobby()
     pcall(function()
-      if Options.Mode:GetValue() == "Nearest" then LocalPlayer.Character.Humanoid.Health = 0 return end
+      if GetFarmMode() == "Nearest" then LocalPlayer.Character.Humanoid.Health = 0 return end
       for _, child in pairs(workspace:GetChildren()) do
         if (child:IsA("Model") or child:IsA("Folder")) and string.find(string.lower(child.Name), "lobby") then
           for _, desc in pairs(child:GetDescendants()) do
@@ -1704,7 +1712,7 @@
       if mag > 200 then
         rootPart.CFrame = cf * CFrame.new(0, 10, 0) task.wait(2)
         TweenTo(cf * CFrame.new(0, 1.5, 0), 5000, false)
-      elseif Options.Mode:GetValue() == "Randomize" then
+      elseif GetFarmMode() == "Randomize" then
         TweenTo(cf * CFrame.new(0, 1.5, 0), 20, true, true, coin)
       else
         TweenTo(cf * CFrame.new(0, 1.5, 0), speed, false)
@@ -1721,7 +1729,7 @@
 
       local function farmStep()
         if not Options.AutoFarm:GetValue() or not IsPlayerAlive(LocalPlayer, roles) or not root then return end
-        local mode = (Options.Mode:GetValue() == "Nearest" or Options.Mode:GetValue() == "Nearest + XP Farm") and "closest" or "random"
+        local mode = (GetFarmMode() == "Nearest" or GetFarmMode() == "Nearest + XP Farm") and "closest" or "random"
         local coin = FindCoin(root, mode)
         if coin and v18 ~= coin then EnableFloat() MoveToCoin(coin, root) v18 = coin end
       end
@@ -1792,7 +1800,7 @@
     DisableFloat()
   end)
 
-  shared.Main:Dropdown({Name = "Collection Mode", Multi = false, Required = true, Options = {"Nearest + XP Farm", "Nearest", "Randomize"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
+  shared.Main:Dropdown({Name = "Collection Mode", Multi = false, Required = true, Options = {"Closest Coin + XP", "Closest Coin", "Random Coins"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
   shared.Main:Divider()
   shared.Main:SubLabel({Text = "ROUND HELPERS"})
 
@@ -1960,7 +1968,7 @@
   end)
 
   shared.Visual:Divider()
-  shared.Visual:Dropdown({Name = "Emote Choice", Multi = false, Required = true, Options = {"ninja", "dab", "floss", "headless", "zen", "zombie", "sit"}, Default = 1, Callback = function() end}, "Emote")
+  shared.Visual:Dropdown({Name = "Emote Choice", Multi = false, Required = true, Options = {"Ninja", "Dab", "Floss", "Headless", "Zen", "Zombie", "Sit"}, Default = 1, Callback = function() end}, "Emote")
   shared.Visual:Toggle("AutoEmote", "Loop Emote", function()
     while Options.AutoEmote:GetValue() do task.wait(0.2) res:emote(Options.Emote:GetValue()) end
   end)
