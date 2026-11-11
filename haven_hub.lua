@@ -1379,6 +1379,7 @@
     logo.BackgroundTransparency = 1
     logo.ScaleType = Enum.ScaleType.Fit
     logo.Image = HavenLoader.LogoAsset
+    logo.ImageTransparency = 0.35
     logo.ZIndex = clickButton.ZIndex
     logo.Parent = clickButton
     clickButton.Text = ""
