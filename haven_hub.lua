@@ -1188,8 +1188,6 @@
     end
 
     local RED       = Color3.fromRGB(225, 29, 46)
-    local RED_DARK  = Color3.fromRGB(120, 16, 26)
-    local CARD_BG   = Color3.fromRGB(15, 14, 16)
     local TRACK     = Color3.fromRGB(62, 62, 68)
     local WHITE     = Color3.fromRGB(255, 255, 255)
     local FONT_ID   = "rbxassetid://12187365364"
@@ -1222,11 +1220,9 @@
       end)
       if not parented or not gui.Parent then gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
-      dim = New("Frame", {Name = "Dim", BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1)}, gui)
+      dim = New("Frame", {Name = "Dim", Active = true, BackgroundColor3 = Color3.fromRGB(8, 8, 10), BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1)}, gui)
 
-      local card = New("Frame", {Name = "Card", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(420, 400), BackgroundColor3 = CARD_BG, BorderSizePixel = 0}, gui)
-      New("UICorner", {CornerRadius = UDim.new(0, 18)}, card)
-      New("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = RED, Thickness = 1, Transparency = 0.65}, card)
+      local card = New("Frame", {Name = "Card", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(420, 400), BackgroundTransparency = 1, BorderSizePixel = 0}, gui)
 
       -- تصغير تلقائي للشاشات الصغيرة (الجوال)
       baseScale = 1
@@ -1238,9 +1234,6 @@
 
       -- منطقة الشعار
       local holder = New("Frame", {Name = "LogoHolder", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 26), Size = UDim2.fromOffset(230, 230), BackgroundTransparency = 1}, card)
-      Circle(230, RED_DARK, 0.9, holder, 1)
-      Circle(200, RED_DARK, 0.72, holder, 2)
-      Circle(160, Color3.fromRGB(104, 18, 28), 0.25, holder, 3)
 
       -- الحلقة الخارجية الباهتة
       local ringBase = Circle(208, WHITE, 1, holder, 4)
@@ -1296,7 +1289,7 @@
         percent.Text = tostring(math.floor(shown + 0.5)) .. "%"
       end)
 
-      TweenService:Create(dim, TweenInfo.new(0.3, Enum.EasingStyle.Sine), {BackgroundTransparency = 0.45}):Play()
+      TweenService:Create(dim, TweenInfo.new(0.3, Enum.EasingStyle.Sine), {BackgroundTransparency = 0.3}):Play()
       TweenService:Create(cardScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = baseScale}):Play()
     end)
 
