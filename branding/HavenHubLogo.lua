@@ -85,9 +85,49 @@ local function piece(parent, x, y, w, h, rotation)
     }, parent)
 end
 
+-- soft red halo made of stacked translucent circles
+local function glow(parent)
+    local holder = circle(parent, 1)
+    local layers = { { 0.74, 0.78 }, { 0.84, 0.86 }, { 0.96, 0.92 }, { 1.1, 0.96 } }
+    for _, layer in ipairs(layers) do
+        circle(holder, layer[1], { BackgroundTransparency = layer[2], BackgroundColor3 = RED })
+    end
+    local pulse = new("UIScale", { Scale = 1 }, holder)
+    TweenService:Create(
+        pulse,
+        TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        { Scale = 1.12 }
+    ):Play()
+end
+
+-- dial of 60 small ticks that turns slowly
+local function dial(parent)
+    local holder = circle(parent, 1)
+    for i = 0, 59 do
+        local major = i % 5 == 0
+        local length = major and 0.042 or 0.022
+        local angle = math.rad(i * 6)
+        local radius = 0.5 - length / 2
+        new("Frame", {
+            AnchorPoint = CENTER,
+            Position = UDim2.fromScale(0.5 + radius * math.cos(angle), 0.5 + radius * math.sin(angle)),
+            Size = UDim2.fromScale(major and 0.009 or 0.006, length),
+            Rotation = i * 6 + 90,
+            BackgroundColor3 = WHITE,
+            BackgroundTransparency = major and 0.05 or 0.7,
+            BorderSizePixel = 0,
+        }, holder)
+    end
+    TweenService:Create(
+        holder,
+        TweenInfo.new(48, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
+        { Rotation = 360 }
+    ):Play()
+end
+
 -- Creates the animated logo. Returns the root Frame (AnchorPoint is its center).
 function Haven.Logo(parent, size)
-    size = size or 200
+    size = size or 220
 
     local root = new("Frame", {
         Name = "HavenHubLogo",
@@ -98,31 +138,38 @@ function Haven.Logo(parent, size)
     }, parent)
     local scale = new("UIScale", { Scale = 0 }, root)
 
-    -- spinning orbits
-    orbit(root, 0.97, WHITE, math.max(2, size * 0.016), 3, 1)
-    orbit(root, 0.86, RED, math.max(2, size * 0.022), 3, -1)
+    glow(root)
+    dial(root)
 
-    -- red disc
-    local disc = circle(root, 0.72, { BackgroundTransparency = 0, BackgroundColor3 = WHITE, ZIndex = 2 })
+    -- spinning comet arcs
+    orbit(root, 0.84, WHITE, math.max(2, size * 0.013), 2, 1)
+    orbit(root, 0.75, RED, math.max(2, size * 0.02), 4, -1)
+
+    -- red disc with a white rim
+    local disc = circle(root, 0.62, { BackgroundTransparency = 0, BackgroundColor3 = WHITE, ZIndex = 2 })
     new("UIGradient", { Color = ColorSequence.new(RED, RED_DARK), Rotation = 55 }, disc)
-    local inner = circle(disc, 0.88, { ZIndex = 2 })
-    new("UIStroke", { Color = WHITE, Transparency = 0.7, Thickness = math.max(1, size * 0.006) }, inner)
+    new("UIStroke", { Color = WHITE, Thickness = math.max(1.5, size * 0.011) }, disc)
+    local inner = circle(disc, 0.86, { ZIndex = 2 })
+    new("UIStroke", { Color = WHITE, Transparency = 0.75, Thickness = math.max(1, size * 0.005) }, inner)
 
-    -- the H: two pillars, a roof-shaped crossbar and a small diamond
-    piece(disc, 0.33, 0.52, 0.11, 0.44)
-    piece(disc, 0.67, 0.52, 0.11, 0.44)
-    piece(disc, 0.415, 0.585, 0.24, 0.09, -45)
-    piece(disc, 0.585, 0.585, 0.24, 0.09, 45)
-    piece(disc, 0.5, 0.5, 0.09, 0.09, 45) -- fills the tip of the roof
-    piece(disc, 0.5, 0.33, 0.07, 0.07, 45)
+    -- the mark: two pointed towers joined by a roof, with a diamond above
+    local mark = circle(disc, 1.14, { ZIndex = 3 })
+    piece(mark, 0.34, 0.53, 0.10, 0.38)
+    piece(mark, 0.66, 0.53, 0.10, 0.38)
+    piece(mark, 0.34, 0.34, 0.0707, 0.0707, 45) -- pointed tower tops
+    piece(mark, 0.66, 0.34, 0.0707, 0.0707, 45)
+    piece(mark, 0.42, 0.58, 0.226, 0.085, -45) -- roof
+    piece(mark, 0.58, 0.58, 0.226, 0.085, 45)
+    piece(mark, 0.5, 0.5, 0.083, 0.083, 45) -- tip of the roof
+    piece(mark, 0.5, 0.325, 0.065, 0.065, 45) -- diamond
 
     -- pop in, then breathe
-    local popIn = TweenService:Create(scale, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+    local popIn = TweenService:Create(scale, TweenInfo.new(0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
     popIn.Completed:Connect(function()
         TweenService:Create(
             scale,
-            TweenInfo.new(0.75, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-            { Scale = 1.05 }
+            TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            { Scale = 1.03 }
         ):Play()
     end)
     popIn:Play()
@@ -133,7 +180,7 @@ end
 -- Full-screen loading screen. Options: Title, Subtitle, Size, Duration, Parent
 function Haven.Intro(options)
     options = options or {}
-    local size = options.Size or 220
+    local size = options.Size or 260
     local fade = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
     local gui = new("ScreenGui", {
@@ -154,13 +201,13 @@ function Haven.Intro(options)
     local content = new("CanvasGroup", {
         AnchorPoint = CENTER,
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(size + 260, size + 190),
+        Size = UDim2.fromOffset(size + 260, size * 1.3 + 150),
         BackgroundTransparency = 1,
         GroupTransparency = 1,
     }, gui)
 
     local logo = Haven.Logo(content, size)
-    logo.Position = UDim2.new(0.5, 0, 0, size / 2 + 30)
+    logo.Position = UDim2.new(0.5, 0, 0, size * 0.68)
 
     local function label(text, y, height, color, font)
         return new("TextLabel", {
@@ -179,7 +226,7 @@ function Haven.Intro(options)
         return (string.gsub(text, ".", "%0 "))
     end
 
-    local y = size + 62
+    local y = size * 1.3 + 20
     label(spaced(options.Title or "HAVEN HUB"), y, 26, WHITE, Enum.Font.GothamBold)
     label(spaced(options.Subtitle or "LOADING"), y + 36, 12, RED, Enum.Font.GothamMedium)
 
@@ -196,6 +243,14 @@ function Haven.Intro(options)
         BackgroundColor3 = RED,
         BorderSizePixel = 0,
     }, bar)
+    local head = new("Frame", { -- bright dot at the end of the bar
+        AnchorPoint = CENTER,
+        Position = UDim2.fromScale(1, 0.5),
+        Size = UDim2.fromOffset(6, 6),
+        BackgroundColor3 = WHITE,
+        BorderSizePixel = 0,
+    }, fill)
+    new("UICorner", { CornerRadius = UDim.new(1, 0) }, head)
     local percent = label("0%", y + 76, 11, WHITE, Enum.Font.Gotham)
 
     TweenService:Create(dim, fade, { BackgroundTransparency = 0.35 }):Play()
