@@ -1,6 +1,9 @@
 --[[
     Haven Hub - animated circular logo + loading screen
-    Built only from GUI objects (no image assets needed), red & white.
+    Red & white. The rings, glow and loading bar are built from GUI objects.
+    The centre emblem is the image haven-hub-mark.png: upload it to Roblox and
+    set Haven.Image below (or pass Image = "..." to Haven.Intro). With no image
+    set, a simpler emblem drawn in code is used instead.
 
     Usage (paste this file at the top of your script, replacing the last
     line "return Haven" with your own code, or load it as a module):
@@ -15,7 +18,7 @@
         intro:Close()
 
         -- 3) Just the animated logo inside your own GUI:
-        local logo = Haven.Logo(myFrame, 120)       -- parent, size in pixels
+        local logo = Haven.Logo(myFrame, 120)       -- parent, size in pixels, [image]
         logo.Position = UDim2.fromScale(0.5, 0.5)
 ]]
 
@@ -28,6 +31,10 @@ local WHITE = Color3.fromRGB(255, 255, 255)
 local CENTER = Vector2.new(0.5, 0.5)
 
 local Haven = {}
+
+-- Put the emblem image here after uploading haven-hub-mark.png to Roblox,
+-- e.g. "rbxassetid://1234567890". Leave nil to use the emblem drawn in code.
+Haven.Image = nil
 
 local function new(class, props, parent)
     local obj = Instance.new(class)
@@ -112,33 +119,8 @@ local function spin(object, seconds, degrees)
     ):Play()
 end
 
--- Creates the animated logo. Returns the root Frame (AnchorPoint is its center).
-function Haven.Logo(parent, size)
-    size = size or 220
-
-    local root = new("Frame", {
-        Name = "HavenHubLogo",
-        AnchorPoint = CENTER,
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(size, size),
-        BackgroundTransparency = 1,
-    }, parent)
-    local scale = new("UIScale", { Scale = 0 }, root)
-
-    glow(root)
-
-    -- outer track: faint circle, a bright arc sweeping around it and a satellite dot
-    local track = circle(root, 0.95)
-    new("UIStroke", { Color = WHITE, Transparency = 0.85, Thickness = math.max(1, size * 0.005) }, track)
-    orbit(root, 0.95, WHITE, math.max(2, size * 0.012), 4, 1)
-    local satellite = circle(root, 0.95)
-    local dot = circle(satellite, 0.05, { BackgroundTransparency = 0, BackgroundColor3 = WHITE })
-    dot.Position = UDim2.fromScale(0, 0.5)
-    spin(satellite, 4, 360)
-
-    -- inner red arc going the other way
-    orbit(root, 0.82, RED, math.max(2, size * 0.018), 4, -1)
-
+-- emblem drawn only with GUI objects, used when no image is set
+local function drawnMark(root, size)
     -- two rounded-square outlines turning against each other (they form a moving star)
     local frameA = square(root, 0.54, 0)
     new("UIStroke", { Color = RED, Thickness = math.max(1.5, size * 0.011) }, frameA)
@@ -166,6 +148,50 @@ function Haven.Logo(parent, size)
     pcall(function() -- heavy italic if this client supports FontFace
         letter.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Heavy, Enum.FontStyle.Italic)
     end)
+end
+
+-- Creates the animated logo. Returns the root Frame (AnchorPoint is its center).
+function Haven.Logo(parent, size, image)
+    size = size or 220
+
+    local root = new("Frame", {
+        Name = "HavenHubLogo",
+        AnchorPoint = CENTER,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(size, size),
+        BackgroundTransparency = 1,
+    }, parent)
+    local scale = new("UIScale", { Scale = 0 }, root)
+
+    glow(root)
+
+    -- outer track: faint circle, a bright arc sweeping around it and a satellite dot
+    local track = circle(root, 0.95)
+    new("UIStroke", { Color = WHITE, Transparency = 0.85, Thickness = math.max(1, size * 0.005) }, track)
+    orbit(root, 0.95, WHITE, math.max(2, size * 0.012), 4, 1)
+    local satellite = circle(root, 0.95)
+    local dot = circle(satellite, 0.05, { BackgroundTransparency = 0, BackgroundColor3 = WHITE })
+    dot.Position = UDim2.fromScale(0, 0.5)
+    spin(satellite, 4, 360)
+
+    -- inner red arc going the other way
+    orbit(root, 0.82, RED, math.max(2, size * 0.018), 4, -1)
+
+    -- centre emblem: the uploaded image if there is one, otherwise the drawn one
+    image = image or Haven.Image
+    if image then
+        new("ImageLabel", {
+            AnchorPoint = CENTER,
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromScale(0.84, 0.84),
+            BackgroundTransparency = 1,
+            Image = image,
+            ScaleType = Enum.ScaleType.Fit,
+            ZIndex = 3,
+        }, root)
+    else
+        drawnMark(root, size)
+    end
 
     -- pop in, then breathe
     local popIn = TweenService:Create(scale, TweenInfo.new(0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
@@ -181,7 +207,7 @@ function Haven.Logo(parent, size)
     return root
 end
 
--- Full-screen loading screen. Options: Title, Subtitle, Size, Duration, Parent
+-- Full-screen loading screen. Options: Title, Subtitle, Size, Duration, Parent, Image
 function Haven.Intro(options)
     options = options or {}
     local size = options.Size or 260
@@ -210,7 +236,7 @@ function Haven.Intro(options)
         GroupTransparency = 1,
     }, gui)
 
-    local logo = Haven.Logo(content, size)
+    local logo = Haven.Logo(content, size, options.Image)
     logo.Position = UDim2.new(0.5, 0, 0, size * 0.68)
 
     local function label(text, y, height, color, font)

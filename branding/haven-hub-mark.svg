@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<linearGradient id="red" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF4350"/><stop offset=".55" stop-color="#E0101F"/><stop offset="1" stop-color="#8E0513"/></linearGradient>
+<linearGradient id="wht" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E4E4EA"/></linearGradient>
+<clipPath id="front"><rect x="-520" y="6" width="1040" height="300"/></clipPath>
+</defs>
+<g transform="translate(512 548) rotate(-18)">
+<path d="M-430,0 a430,150 0 1,0 860,0 a430,150 0 1,0 -860,0 Z M-412,-18 a400,110 0 1,1 800,0 a400,110 0 1,1 -800,0 Z" fill="url(#red)" fill-rule="evenodd" stroke="#14060A" stroke-width="12" stroke-linejoin="round" paint-order="stroke"/>
+</g>
+<g transform="translate(512 512) skewX(-12) translate(-512 -512)" stroke-linejoin="round">
+<path d="M277,292 L427,252 L427,470 L597,440 L597,292 L747,252 L747,732 L597,772 L597,560 L427,590 L427,732 L277,772 Z" transform="translate(20 20)" fill="#8E0513" stroke="#14060A" stroke-width="14"/>
+<path d="M277,292 L427,252 L427,470 L597,440 L597,292 L747,252 L747,732 L597,772 L597,560 L427,590 L427,732 L277,772 Z" fill="url(#wht)" stroke="#14060A" stroke-width="14" paint-order="stroke"/>
+</g>
+<g transform="translate(512 548) rotate(-18)">
+<g clip-path="url(#front)"><path d="M-430,0 a430,150 0 1,0 860,0 a430,150 0 1,0 -860,0 Z M-412,-18 a400,110 0 1,1 800,0 a400,110 0 1,1 -800,0 Z" fill="url(#red)" fill-rule="evenodd" stroke="#14060A" stroke-width="12" stroke-linejoin="round" paint-order="stroke"/>
+<path d="M-380,58 A410,128 0 0,0 380,58" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="5" stroke-linecap="round"/></g>
+<path d="M0,-46 L9,-9 L46,0 L9,9 L0,46 L-9,9 L-46,0 L-9,-9 Z" transform="translate(392 -70) rotate(18)" fill="#fff" stroke="#14060A" stroke-width="8" stroke-linejoin="round" paint-order="stroke"/>
+</g>
+</svg>
