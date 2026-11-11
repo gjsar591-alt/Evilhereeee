@@ -1417,12 +1417,12 @@
 
   Vertex = Window:TabGroup()
   shared.tabs = {
-    Main     = Vertex:Tab({Name = "Main & Farm", Image = "rbxassetid://10734934585"}),
-    Roles    = Vertex:Tab({Name = "Combat & Roles", Image = "rbxassetid://10747373426"}),
+    Main     = Vertex:Tab({Name = "Main & Farm", Image = "rbxassetid://10709811110"}),
+    Roles    = Vertex:Tab({Name = "Combat & Roles", Image = "rbxassetid://10734975692"}),
     Target   = Vertex:Tab({Name = "Target Control", Image = "rbxassetid://10709818534"}),
-    Visual   = Vertex:Tab({Name = "Visuals & ESP", Image = "rbxassetid://10709818399"}),
+    Visual   = Vertex:Tab({Name = "Visuals & ESP", Image = "rbxassetid://10723346959"}),
     Player   = Vertex:Tab({Name = "LocalPlayer", Image = "rbxassetid://10747373176"}),
-    Tracker  = Vertex:Tab({Name = "Webhooks", Image = "rbxassetid://10709811110"}),
+    Tracker  = Vertex:Tab({Name = "Webhooks", Image = "rbxassetid://10734943902"}),
     Settings = Vertex:Tab({Name = "Settings", Image = "rbxassetid://10734950309"})
   }
 
