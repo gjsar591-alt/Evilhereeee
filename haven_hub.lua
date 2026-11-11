@@ -173,19 +173,19 @@
         Create("Frame", {Name = "Divider", AnchorPoint = Vector2.new(0, 1), BackgroundColor3 = Theme.Accent, BackgroundTransparency = 0.85, BorderSizePixel = 0, Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 1)})
       })
       local dragInteract = Create("TextButton", {Name = "Interact", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 1, Parent = header})
-      local currentTab = Create("TextLabel", {Name = "CurrentTab", FontFace = InterFont(Enum.FontWeight.Bold), RichText = true, Text = "HAVEN HUB", TextColor3 = Theme.Text, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, BackgroundTransparency = 1, Position = UDim2.fromOffset(18, 9), Size = UDim2.new(1, -130, 0, 20), ZIndex = 2, Parent = header})
-      local subtitle = Create("Frame", {Name = "Subtitle", BackgroundTransparency = 1, Position = UDim2.fromOffset(18, 31), Size = UDim2.new(1, -130, 0, 12), ZIndex = 2, Parent = header}, {
+      local currentTab = Create("TextLabel", {Name = "CurrentTab", FontFace = InterFont(Enum.FontWeight.Bold), RichText = true, Text = "HAVEN HUB", TextColor3 = Theme.Text, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, BackgroundTransparency = 1, Position = UDim2.fromOffset(18, 9), Size = UDim2.new(1, -146, 0, 20), ZIndex = 2, Parent = header})
+      local subtitle = Create("Frame", {Name = "Subtitle", BackgroundTransparency = 1, Position = UDim2.fromOffset(18, 31), Size = UDim2.new(1, -146, 0, 12), ZIndex = 2, Parent = header}, {
         Create("UIListLayout", {Padding = UDim.new(0, 6), FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Center})
       })
       Create("TextLabel", {Name = "Brand", FontFace = InterFont(Enum.FontWeight.Bold), Text = "HAVEN HUB", TextColor3 = Theme.Accent, TextSize = 9, AutomaticSize = Enum.AutomaticSize.X, BackgroundTransparency = 1, Size = UDim2.fromOffset(0, 12), ZIndex = 2, Parent = subtitle})
       local displayName = Create("TextLabel", {Name = "DisplayName", FontFace = InterFont(Enum.FontWeight.SemiBold), Text = LocalPlayer.DisplayName, TextColor3 = Theme.Text, TextSize = 9, TextTransparency = 0.25, AutomaticSize = Enum.AutomaticSize.X, BackgroundTransparency = 1, LayoutOrder = 1, Size = UDim2.fromOffset(0, 12), ZIndex = 2, Parent = subtitle})
       local username = Create("TextLabel", {Name = "Username", FontFace = InterFont(Enum.FontWeight.Medium), Text = "@" .. LocalPlayer.Name, TextColor3 = Theme.SubText, TextSize = 9, TextTransparency = 0.25, AutomaticSize = Enum.AutomaticSize.X, BackgroundTransparency = 1, LayoutOrder = 2, Size = UDim2.fromOffset(0, 12), ZIndex = 2, Parent = subtitle})
 
-      local controls = Create("Frame", {Name = "Controls", AnchorPoint = Vector2.new(1, 0.5), BackgroundTransparency = 1, Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(96, 28), ZIndex = 3, Parent = header}, {
+      local controls = Create("Frame", {Name = "Controls", AnchorPoint = Vector2.new(1, 0.5), BackgroundTransparency = 1, Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(114, 32), ZIndex = 3, Parent = header}, {
         Create("UIListLayout", {Padding = UDim.new(0, 6), FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Right, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Center})
       })
       local function ControlButton(name, order, hoverColor)
-        local btn = Create("TextButton", {Name = name, Text = "", AutoButtonColor = false, BackgroundColor3 = Theme.CardBg, BorderSizePixel = 0, LayoutOrder = order, Size = UDim2.fromOffset(28, 28), ZIndex = 3, Parent = controls}, {
+        local btn = Create("TextButton", {Name = name, Text = "", AutoButtonColor = false, BackgroundColor3 = Theme.CardBg, BorderSizePixel = 0, LayoutOrder = order, Size = UDim2.fromOffset(32, 32), ZIndex = 3, Parent = controls}, {
           Create("UICorner", {CornerRadius = UDim.new(1, 0)}),
           Create("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Theme.StrokeIdle, Transparency = 0.5})
         })
@@ -196,7 +196,11 @@
       local globalSettingsButton = ControlButton("GlobalSettingsButton", 0, Theme.CardHover)
       Create("ImageLabel", {Image = assets.settingsImage, ImageColor3 = Theme.AccentSecondary, AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(14, 14), ZIndex = 3, Parent = globalSettingsButton})
       local minimize = ControlButton("Minimize", 1, Theme.CardHover)
-      Create("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Theme.Text, BorderSizePixel = 0, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(10, 2), ZIndex = 3, Parent = minimize})
+      local minimizeLine = Create("Frame", {Name = "CollapseIcon", AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Theme.Text, BorderSizePixel = 0, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(11, 2), ZIndex = 3, Parent = minimize})
+      local restoreBox = Create("Frame", {Name = "RestoreIcon", AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(9, 9), Visible = false, ZIndex = 3, Parent = minimize}, {
+        Create("UICorner", {CornerRadius = UDim.new(0, 2)}),
+        Create("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Theme.Text, Thickness = 1.5})
+      })
       local exit = ControlButton("Exit", 2, Theme.Accent)
       Create("TextLabel", {FontFace = InterFont(Enum.FontWeight.Bold), Text = "X", TextColor3 = Theme.Text, TextSize = 12, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 3, Parent = exit})
 
@@ -717,11 +721,63 @@
       UserInputService.InputEnded:Connect(function(inp, gpe)
         if not gpe and inp.KeyCode == MenuKeybind then WindowFunctions:SetState(not WindowFunctions:GetState()) end
       end)
-      exit.MouseButton1Click:Connect(function()
+
+      -- زر التصغير: يحوّل النافذة إلى شريط صغير (مناسب للجوال) والضغط مرة ثانية يرجّعها
+      local BAR_SIZE = UDim2.fromOffset(320, HEADER_H)
+      local collapsed = false
+      local function SetCollapsed(State)
+        if collapsed == State then return end
+        collapsed = State
+        -- نثبّت الحافة العلوية للنافذة مكانها أثناء التصغير/التكبير
+        local shift = (windowSize.Y.Offset - BAR_SIZE.Y.Offset) / 2 * fitScale
+        local pos = base.Position
+        if State then
+          if gsToggled then gsToggled = false globalSettingsUIScale.Scale = 0 end
+          rail.Visible = false
+          content.Visible = false
+          globalSettingsButton.Visible = false
+          header.Position = UDim2.fromOffset(0, 0)
+          header.Size = UDim2.fromScale(1, 1)
+          base.Size = BAR_SIZE
+          base.Position = UDim2.new(pos.X.Scale, pos.X.Offset, pos.Y.Scale, pos.Y.Offset - shift)
+        else
+          base.Size = windowSize
+          base.Position = UDim2.new(pos.X.Scale, pos.X.Offset, pos.Y.Scale, pos.Y.Offset + shift)
+          header.Position = UDim2.fromOffset(RAIL_W, 0)
+          header.Size = UDim2.new(1, -RAIL_W, 0, HEADER_H)
+          rail.Visible = true
+          content.Visible = true
+          globalSettingsButton.Visible = true
+        end
+        minimizeLine.Visible = not State
+        restoreBox.Visible = State
+      end
+      function WindowFunctions:SetCollapsed(State) SetCollapsed(State == true) end
+      function WindowFunctions:GetCollapsed() return collapsed end
+      minimize.MouseButton1Click:Connect(function() SetCollapsed(not collapsed) end)
+
+      -- زر الإغلاق النهائي: يطفّي كل المميزات الشغالة ويحذف الواجهة وزر الشعار
+      local function CloseHub()
+        for _, opt in pairs(haven.Options) do
+          if opt.Class == "Toggle" and opt.State then pcall(function() opt:UpdateState(false) end) end
+        end
         screenGui:Destroy() pcall(function() LocalPlayer.PlayerGui.HavenClickButton:Destroy() end)
         shared.loaded = nil shared.VertexLoaded = nil
+      end
+      local closeDialogOpen = false
+      exit.MouseButton1Click:Connect(function()
+        if closeDialogOpen then return end
+        closeDialogOpen = true
+        SetCollapsed(false)
+        WindowFunctions:Dialog({
+          Title = "CLOSE HAVEN HUB",
+          Description = "This closes the hub completely and turns off every running feature. You will need to run the script again to reopen it.",
+          Buttons = {
+            {Name = "Close Hub", Callback = CloseHub},
+            {Name = "Cancel", Callback = function() closeDialogOpen = false end}
+          }
+        })
       end)
-      minimize.MouseButton1Click:Connect(function() WindowFunctions:SetState(false) end)
 
       function haven:SaveConfig(Path)
         if not Path or not writefile then return false end
