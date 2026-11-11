@@ -30,18 +30,18 @@
     local tabIndex = 0
 
     local Theme = {
-      BaseBg          = Color3.fromRGB(9, 9, 14),
-      SidebarBg       = Color3.fromRGB(6, 6, 10),
-      SectionBg       = Color3.fromRGB(13, 13, 20),
-      CardBg          = Color3.fromRGB(19, 19, 29),
-      CardHover       = Color3.fromRGB(26, 26, 40),
-      PromptBg        = Color3.fromRGB(12, 12, 18),
-      Accent          = Color3.fromRGB(124, 58, 237),
-      AccentSecondary = Color3.fromRGB(56, 189, 248),
-      ToggleOff       = Color3.fromRGB(30, 30, 44),
-      ToggleHeadOff   = Color3.fromRGB(130, 130, 155),
-      StrokeIdle      = Color3.fromRGB(45, 45, 65),
-      StrokeHover     = Color3.fromRGB(124, 58, 237)
+      BaseBg          = Color3.fromRGB(10, 10, 11),
+      SidebarBg       = Color3.fromRGB(6, 6, 7),
+      SectionBg       = Color3.fromRGB(15, 15, 17),
+      CardBg          = Color3.fromRGB(22, 22, 25),
+      CardHover       = Color3.fromRGB(34, 24, 27),
+      PromptBg        = Color3.fromRGB(13, 13, 15),
+      Accent          = Color3.fromRGB(225, 29, 46),
+      AccentSecondary = Color3.fromRGB(255, 92, 104),
+      ToggleOff       = Color3.fromRGB(36, 36, 40),
+      ToggleHeadOff   = Color3.fromRGB(140, 140, 146),
+      StrokeIdle      = Color3.fromRGB(52, 52, 58),
+      StrokeHover     = Color3.fromRGB(225, 29, 46)
     }
 
     local assets = {
@@ -144,7 +144,7 @@
       local titleFrame = Create("Frame", {Name = "TitleFrame", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = informationHolder}, {
         Create("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Center})
       })
-      Create("TextLabel", {Name = "Title", FontFace = Font.new(assets.interFont, Enum.FontWeight.Bold, Enum.FontStyle.Normal), Text = '<font color="#A855F7">HAVEN</font> <font color="#FFFFFF">HUB</font>', TextColor3 = Color3.fromRGB(255, 255, 255), RichText = true, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left, AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Size = UDim2.new(1, -24, 0, 0), Parent = titleFrame})
+      Create("TextLabel", {Name = "Title", FontFace = Font.new(assets.interFont, Enum.FontWeight.Bold, Enum.FontStyle.Normal), Text = '<font color="#E11D2E">HAVEN</font> <font color="#FFFFFF">HUB</font>', TextColor3 = Color3.fromRGB(255, 255, 255), RichText = true, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left, AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Size = UDim2.new(1, -24, 0, 0), Parent = titleFrame})
       Create("TextLabel", {Name = "Subtitle", FontFace = Font.new(assets.interFont, Enum.FontWeight.SemiBold, Enum.FontStyle.Normal), RichText = true, Text = "MURDER MYSTERY 2  |  PRO", TextColor3 = Theme.AccentSecondary, TextSize = 10, TextTransparency = 0.2, TextXAlignment = Enum.TextXAlignment.Left, AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1, Size = UDim2.new(1, -24, 0, 0), Parent = titleFrame})
 
       local sidebarGroup = Create("Frame", {Name = "SidebarGroup", BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 96), Size = UDim2.new(1, 0, 1, -96), Parent = sidebar}, {
@@ -486,7 +486,7 @@
                 end
                 Selected = {optionName}
                 DropdownFunctions.Value = optionName
-                dropdownName.Text = dSettings.Name .. '  |  <font color="#38BDF8">' .. optionName .. '</font>'
+                dropdownName.Text = dSettings.Name .. '  |  <font color="#FF5C68">' .. optionName .. '</font>'
               end
               local dropped = false
               interact.MouseButton1Click:Connect(function()
@@ -559,7 +559,7 @@
             end
             tabs[tabSwitcher].Parent = content
             currentTabInstance = tabs[tabSwitcher]
-            currentTab.Text = '<font color="#A855F7">HAVEN HUB</font>  /  ' .. string.upper(tSettings.Name)
+            currentTab.Text = '<font color="#E11D2E">HAVEN HUB</font>  /  ' .. string.upper(tSettings.Name)
             Tween(tabSwitcher, TweenInfo.new(easetime, Enum.EasingStyle.Sine), {BackgroundTransparency = 0.25}):Play()
             Tween(tabStroke, TweenInfo.new(easetime, Enum.EasingStyle.Sine), {Transparency = 0.45}):Play()
             Tween(activeBar, TweenInfo.new(easetime, Enum.EasingStyle.Sine), {BackgroundTransparency = 0}):Play()
@@ -2092,7 +2092,7 @@
           username = "Haven Hub - Coin Tracker",
           embeds = {{
             title = "Haven Hub Currency Tracker",
-            color = 5814783,
+            color = 14753070,
             fields = {
               {name = "Bag:", value = tostring(bagType), inline = false},
               {name = "Coins Collected in " .. str .. ":", value = tostring(coinsGained), inline = false},
