@@ -618,17 +618,17 @@
           tabSwitcher.MouseButton1Click:Connect(SelectCurrentTab)
           function TabFunctions:Select() SelectCurrentTab() end
           function TabFunctions:InsertConfigSection(_, THISWINDOW)
-            THISWINDOW:GlobalSetting({Name = "See-Through Window", Default = THISWINDOW:GetAcrylicBlurState(), Callback = function(b) THISWINDOW:SetAcrylicBlurState(b) end})
-            THISWINDOW:GlobalSetting({Name = "Show My Account", Default = THISWINDOW:GetUserInfoState(), Callback = function(b) THISWINDOW:SetUserInfoState(b) end})
+            THISWINDOW:GlobalSetting({Name = "UI Transparency", Default = THISWINDOW:GetAcrylicBlurState(), Callback = function(b) THISWINDOW:SetAcrylicBlurState(b) end})
+            THISWINDOW:GlobalSetting({Name = "Show User Info", Default = THISWINDOW:GetUserInfoState(), Callback = function(b) THISWINDOW:SetUserInfoState(b) end})
             local configSection = TabFunctions:Section({Side = "Left"})
-            configSection:SubLabel({Text = "SAVING & SERVERS"})
-            configSection:Toggle("SaveSettings", "Auto Save Config", function()
+            configSection:SubLabel({Text = "CONFIGURATION & SERVER CONTROLS"})
+            configSection:Toggle("SaveSettings", "Auto Save Settings", function()
               local lastSave = 0
               repeat task.wait(1)
                 if os.clock() - lastSave >= 5 then lastSave = os.clock() haven:SaveConfig(game.PlaceId) end
               until not Options.SaveSettings:GetValue()
             end)
-            configSection:Toggle("AutoRejoin", "Auto Rejoin If Kicked", function(value)
+            configSection:Toggle("AutoRejoin", "Auto Rejoin On Disconnect", function(value)
               if value then
                 repeat task.wait(1)
                   pcall(function()
@@ -640,8 +640,8 @@
               end
             end)
             configSection:Divider()
-            configSection:Button({Name = "Rejoin This Server", Callback = function() Services.TeleportService:Teleport(game.PlaceId, LocalPlayer) end})
-            configSection:Button({Name = "Join Another Server", Callback = function()
+            configSection:Button({Name = "Rejoin Current Server", Callback = function() Services.TeleportService:Teleport(game.PlaceId, LocalPlayer) end})
+            configSection:Button({Name = "Server Hop (New Server)", Callback = function()
               pcall(function()
                 local Site = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
                 for _, v in pairs(Site.data) do
@@ -1477,11 +1477,11 @@
 
   Vertex = Window:TabGroup()
   shared.tabs = {
-    Main     = Vertex:Tab({Name = "Farming", Image = "rbxassetid://10709811110"}),
-    Roles    = Vertex:Tab({Name = "Combat", Image = "rbxassetid://10734975692"}),
-    Target   = Vertex:Tab({Name = "Targeting", Image = "rbxassetid://10734977012"}),
-    Visual   = Vertex:Tab({Name = "Visuals", Image = "rbxassetid://10723346959"}),
-    Player   = Vertex:Tab({Name = "Character", Image = "rbxassetid://10734920149"}),
+    Main     = Vertex:Tab({Name = "Main & Farm", Image = "rbxassetid://10709811110"}),
+    Roles    = Vertex:Tab({Name = "Combat & Roles", Image = "rbxassetid://10734975692"}),
+    Target   = Vertex:Tab({Name = "Target Control", Image = "rbxassetid://10734977012"}),
+    Visual   = Vertex:Tab({Name = "Visuals & ESP", Image = "rbxassetid://10723346959"}),
+    Player   = Vertex:Tab({Name = "LocalPlayer", Image = "rbxassetid://10734920149"}),
     Tracker  = Vertex:Tab({Name = "Webhooks", Image = "rbxassetid://10734943902"}),
     Settings = Vertex:Tab({Name = "Settings", Image = "rbxassetid://10734963191"})
   }
@@ -1496,16 +1496,8 @@
   local tbl, roles = {}, {}
   local Noclipping, antifling, unboxConnection
 
-  -- الأسامي المعروضة في القوائم -> القيم الأصلية اللي يعتمد عليها السكربت واللعبة
-  local FarmModeIds = {["Closest Coin + XP"] = "Nearest + XP Farm", ["Closest Coin"] = "Nearest", ["Random Coins"] = "Randomize"}
-  local EmoteIds = {["Ninja"] = "ninja", ["Dab"] = "dab", ["Floss"] = "floss", ["Headless"] = "headless", ["Zen"] = "zen", ["Zombie"] = "zombie", ["Sit"] = "sit"}
-  local function GetFarmMode()
-    local value = Options.Mode and Options.Mode:GetValue()
-    return FarmModeIds[value] or value
-  end
-
   local res = {
-    emote = function(_, emoteName) pcall(function() ReplicatedStorage.Remotes.Misc.PlayEmote:Fire(EmoteIds[emoteName] or emoteName) end) end,
+    emote = function(_, emoteName) pcall(function() ReplicatedStorage.Remotes.Misc.PlayEmote:Fire(emoteName) end) end,
     fling = function(_, targetPlayer)
       pcall(function()
         local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -1667,7 +1659,7 @@
 
   local function ResetOrLobby()
     pcall(function()
-      if GetFarmMode() == "Nearest" then LocalPlayer.Character.Humanoid.Health = 0 return end
+      if Options.Mode:GetValue() == "Nearest" then LocalPlayer.Character.Humanoid.Health = 0 return end
       for _, child in pairs(workspace:GetChildren()) do
         if (child:IsA("Model") or child:IsA("Folder")) and string.find(string.lower(child.Name), "lobby") then
           for _, desc in pairs(child:GetDescendants()) do
@@ -1712,7 +1704,7 @@
       if mag > 200 then
         rootPart.CFrame = cf * CFrame.new(0, 10, 0) task.wait(2)
         TweenTo(cf * CFrame.new(0, 1.5, 0), 5000, false)
-      elseif GetFarmMode() == "Randomize" then
+      elseif Options.Mode:GetValue() == "Randomize" then
         TweenTo(cf * CFrame.new(0, 1.5, 0), 20, true, true, coin)
       else
         TweenTo(cf * CFrame.new(0, 1.5, 0), speed, false)
@@ -1729,7 +1721,7 @@
 
       local function farmStep()
         if not Options.AutoFarm:GetValue() or not IsPlayerAlive(LocalPlayer, roles) or not root then return end
-        local mode = (GetFarmMode() == "Nearest" or GetFarmMode() == "Nearest + XP Farm") and "closest" or "random"
+        local mode = (Options.Mode:GetValue() == "Nearest" or Options.Mode:GetValue() == "Nearest + XP Farm") and "closest" or "random"
         local coin = FindCoin(root, mode)
         if coin and v18 ~= coin then EnableFloat() MoveToCoin(coin, root) v18 = coin end
       end
@@ -1786,8 +1778,8 @@
   -- 4. بناء الأزرار والخيارات (بدون إيموجيات نهائياً)
   -- ============================================================================
   HavenLoader:SetProgress(75)
-  shared.Main:SubLabel({Text = "COIN FARMING"})
-  shared.Main:Toggle("AutoFarm", "Auto Collect Coins", function(arg1)
+  shared.Main:SubLabel({Text = "AUTO FARMING & COLLECTION"})
+  shared.Main:Toggle("AutoFarm", "Enable Coin Auto-Farm", function(arg1)
     if arg1 then
       Noclipping = RunService.Stepped:Connect(function()
         if LocalPlayer.Character and IsPlayerAlive(LocalPlayer, roles) then
@@ -1800,11 +1792,11 @@
     DisableFloat()
   end)
 
-  shared.Main:Dropdown({Name = "Collection Mode", Multi = false, Required = true, Options = {"Closest Coin + XP", "Closest Coin", "Random Coins"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
+  shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Nearest + XP Farm", "Nearest", "Randomize"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
   shared.Main:Divider()
-  shared.Main:SubLabel({Text = "ROUND HELPERS"})
+  shared.Main:SubLabel({Text = "SURVIVAL & ROUND UTILITIES"})
 
-  shared.Main:Toggle("AutoGrab", "Auto Pick Up Gun", function(arg1)
+  shared.Main:Toggle("AutoGrab", "Automatically Grab Gun", function(arg1)
     if arg1 then
       repeat task.wait()
         pcall(function()
@@ -1818,7 +1810,7 @@
     end
   end)
 
-  shared.Main:Toggle("DodgeKnife", "Evade Thrown Knives", function(arg1)
+  shared.Main:Toggle("DodgeKnife", "Dodge Thrown Knife", function(arg1)
     if arg1 then
       repeat task.wait()
         pcall(function()
@@ -1837,7 +1829,7 @@
     end
   end)
 
-  shared.Main:Toggle("EndRound", "Force Round End", function(arg1)
+  shared.Main:Toggle("EndRound", "Auto End Round", function(arg1)
     if arg1 then
       Window:Notify({Title = "HAVEN HUB", Description = "Flings Murderer when you are not in the round.", Duration = 5})
       repeat task.wait()
@@ -1848,8 +1840,8 @@
   end)
 
   shared.Main:Divider()
-  shared.Main:SubLabel({Text = "TELEPORTS"})
-  shared.Main:Button({Name = "Go To Lobby", Callback = function()
+  shared.Main:SubLabel({Text = "QUICK TELEPORTS"})
+  shared.Main:Button({Name = "Teleport To Lobby", Callback = function()
     for _, child in pairs(workspace:GetChildren()) do
       if (child:IsA("Model") or child:IsA("Folder")) and string.find(string.lower(child.Name), "lobby") then
         for _, desc in pairs(child:GetDescendants()) do
@@ -1859,7 +1851,7 @@
     end
   end})
 
-  shared.Main:Button({Name = "Go To Map", Callback = function()
+  shared.Main:Button({Name = "Teleport To Map", Callback = function()
     local spawns = GetMapElement("Spawns")
     if spawns then
       for _, desc in ipairs(spawns:GetDescendants()) do
@@ -1869,13 +1861,13 @@
   end})
 
   -- قسم Target
-  shared.Target:SubLabel({Text = "PLAYER TARGETING"})
-  local TargetDropdown = shared.Target:Dropdown({Name = "Selected Player", Search = true, Multi = false, Required = false, Options = {}, Default = {}, Callback = function() end}, "Target")
+  shared.Target:SubLabel({Text = "TARGET PLAYER CONTROLS"})
+  local TargetDropdown = shared.Target:Dropdown({Name = "Target", Search = true, Multi = false, Required = false, Options = {}, Default = {}, Callback = function() end}, "Target")
   local res12 = Players.PlayerAdded:Connect(function(p) TargetDropdown:InsertOptions({p.Name}) end)
   local res13 = Players.PlayerRemoving:Connect(function(p) TargetDropdown:RemoveOptions({p.Name}) end)
   for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then TargetDropdown:InsertOptions({p.Name}) end end
 
-  shared.Target:Toggle("TargetFling", "Fling Selected Player", function(arg1)
+  shared.Target:Toggle("TargetFling", "Fling Target", function(arg1)
     if arg1 then
       repeat task.wait()
         local target = Options.Target:GetValue() and Players:FindFirstChild(Options.Target:GetValue())
@@ -1885,7 +1877,7 @@
     end
   end)
 
-  shared.Target:Toggle("Spectate", "Watch Selected Player", function(arg1)
+  shared.Target:Toggle("Spectate", "Spectate Target", function(arg1)
     if arg1 then
       repeat task.wait()
         local target = Options.Target:GetValue() and Players:FindFirstChild(Options.Target:GetValue())
@@ -1895,7 +1887,7 @@
     end
   end)
 
-  shared.Target:Toggle("Annoy", "Follow Selected Player", function(arg1)
+  shared.Target:Toggle("Annoy", "Loop Go To Target", function(arg1)
     if arg1 then
       repeat task.wait()
         pcall(function()
@@ -1907,14 +1899,14 @@
     end
   end)
 
-  shared.Target:Button({Name = "Go To Selected Player", Callback = function()
+  shared.Target:Button({Name = "Teleport To Target", Callback = function()
     local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     local tChar = Options.Target:GetValue() and workspace:FindFirstChild(Options.Target:GetValue())
     if myRoot and tChar and tChar:FindFirstChild("HumanoidRootPart") then myRoot.CFrame = tChar.HumanoidRootPart.CFrame end
   end})
 
   shared.Target:Divider()
-  shared.Target:Toggle("FlingSheriff", "Fling The Sheriff", function(arg1)
+  shared.Target:Toggle("FlingSheriff", "Fling Sheriff", function(arg1)
     if arg1 then
       repeat task.wait()
         local sPlayer = v15 and Players:FindFirstChild(v15)
@@ -1923,7 +1915,7 @@
     end
   end)
 
-  shared.Target:Toggle("FlingMurderer", "Fling The Murderer", function(arg1)
+  shared.Target:Toggle("FlingMurderer", "Fling Murderer", function(arg1)
     if arg1 then
       repeat task.wait()
         local mPlayer = v14 and Players:FindFirstChild(v14)
@@ -1933,15 +1925,15 @@
   end)
 
   -- قسم Visuals
-  shared.Visual:SubLabel({Text = "ESP & HIGHLIGHTS"})
-  shared.Visual:Toggle("Chams", "Role Colors ESP", function(arg1)
+  shared.Visual:SubLabel({Text = "PLAYER & GUN ESP"})
+  shared.Visual:Toggle("Chams", "Player Role Chams", function(arg1)
     if arg1 then
       repeat task.wait(0.2) UpdateChams() until not Options.Chams:GetValue()
       ClearESP()
     end
   end)
 
-  shared.Visual:Toggle("GunDropCham", "Dropped Gun ESP", function(arg1)
+  shared.Visual:Toggle("GunDropCham", "Dropped Gun Highlight", function(arg1)
     while arg1 and Options.GunDropCham:GetValue() do
       task.wait(0.5)
       local gunDrop = GetGunDrop()
@@ -1952,14 +1944,14 @@
     end
   end)
 
-  shared.Visual:Toggle("Render", "Pause Rendering In Background", function(arg1)
+  shared.Visual:Toggle("Render", "Disable 3D Rendering When Unfocused", function(arg1)
     if arg1 then
       UserInputService.WindowFocusReleased:Connect(function() if Options.Render:GetValue() then RunService:Set3dRenderingEnabled(false) end end)
       UserInputService.WindowFocused:Connect(function() RunService:Set3dRenderingEnabled(true) end)
     end
   end)
 
-  shared.Visual:Toggle("Names", "Name Tags ESP", function()
+  shared.Visual:Toggle("Names", "Player Name ESP", function()
     while Options.Names:GetValue() do
       task.wait(0.5)
       for _, p in pairs(Players:GetPlayers()) do if p.Character then CreateNameESP(p) end end
@@ -1968,14 +1960,14 @@
   end)
 
   shared.Visual:Divider()
-  shared.Visual:Dropdown({Name = "Emote Choice", Multi = false, Required = true, Options = {"Ninja", "Dab", "Floss", "Headless", "Zen", "Zombie", "Sit"}, Default = 1, Callback = function() end}, "Emote")
-  shared.Visual:Toggle("AutoEmote", "Loop Emote", function()
+  shared.Visual:Dropdown({Name = "Emote", Multi = false, Required = true, Options = {"ninja", "dab", "floss", "headless", "zen", "zombie", "sit"}, Default = 1, Callback = function() end}, "Emote")
+  shared.Visual:Toggle("AutoEmote", "Auto Emote", function()
     while Options.AutoEmote:GetValue() do task.wait(0.2) res:emote(Options.Emote:GetValue()) end
   end)
 
   -- قسم Combat & Roles
-  shared.Roles:SubLabel({Text = "MURDERER TOOLS"})
-  shared.Roles:Toggle("KillAura", "Knife Aura", function(arg1)
+  shared.Roles:SubLabel({Text = "MURDERER COMBAT"})
+  shared.Roles:Toggle("KillAura", "Knife Kill Aura", function(arg1)
     if arg1 then
       repeat task.wait()
         pcall(function()
@@ -1993,7 +1985,7 @@
     end
   end)
 
-  shared.Roles:Slider("AuraDistance", "Aura Range", 5, 50, 5, "Percent", function() end)
+  shared.Roles:Slider("AuraDistance", "Aura Distance", 5, 50, 5, "Percent", function() end)
 
   KillAll = function()
     pcall(function()
@@ -2006,7 +1998,7 @@
     end)
   end
 
-  shared.Roles:Toggle("KillAll", "Eliminate Everyone", function(arg1)
+  shared.Roles:Toggle("KillAll", "Auto Kill All", function(arg1)
     if arg1 then
       repeat task.wait()
         if v14 and (IsBagFull() or not Options.AutoFarm:GetValue()) and v14 == LocalPlayer.Name then KillAll() end
@@ -2015,8 +2007,8 @@
   end)
 
   shared.Roles:Divider()
-  shared.Roles:SubLabel({Text = "SHERIFF TOOLS"})
-  shared.Roles:Toggle("SilentAim", "Silent Aim", function(arg1)
+  shared.Roles:SubLabel({Text = "SHERIFF COMBAT"})
+  shared.Roles:Toggle("SilentAim", "Gun Silent Aim", function(arg1)
     if arg1 then
       local conn = nil
       repeat task.wait()
@@ -2041,7 +2033,7 @@
     end
   end)
 
-  shared.Roles:Toggle("KillM", "Instant Shot (Obvious)", function(arg1)
+  shared.Roles:Toggle("KillM", "Kill Murderer (Blatant)", function(arg1)
     if arg1 then
       repeat task.wait()
         if IsBagFull() or not Options.AutoFarm:GetValue() then EquipTool("Gun") ShootMurderer() end
@@ -2049,7 +2041,7 @@
     end
   end)
 
-  shared.Roles:Toggle("AutoShoot", "Auto Fire At Murderer", function(arg1)
+  shared.Roles:Toggle("AutoShoot", "Auto Shoot Murderer", function(arg1)
     if arg1 then
       repeat task.wait()
         pcall(function()
@@ -2064,20 +2056,20 @@
     end
   end)
 
-  shared.Roles:Keybind("ShootBind", "Fire Key", function() pcall(function() EquipTool("Gun") ShootMurderer() end) end)
+  shared.Roles:Keybind("ShootBind", "Shoot Murderer Keybind", function() pcall(function() EquipTool("Gun") ShootMurderer() end) end)
 
   -- قسم Webhooks
-  shared.Tracker:SubLabel({Text = "DISCORD WEBHOOK"})
-  local WebhookInput = shared.Tracker:Input({Name = "Webhook Link", Placeholder = "https://discord.com/api/webhooks/...", AcceptedCharacters = "All", Callback = function() end}, "Webhook")
+  shared.Tracker:SubLabel({Text = "DISCORD WEBHOOK INTEGRATION"})
+  local WebhookInput = shared.Tracker:Input({Name = "Webhook URL", Placeholder = "https://discord.com/api/webhooks/...", AcceptedCharacters = "All", Callback = function() end}, "Webhook")
   shared.Tracker:Divider()
-  shared.Tracker:Toggle("CoinTracker", "Coin Reports", function() end)
-  shared.Tracker:Input({Name = "Report Interval (Minutes)", Placeholder = "minutes", AcceptedCharacters = "Numeric", Callback = function(arg1)
+  shared.Tracker:Toggle("CoinTracker", "Coin Tracker", function() end)
+  shared.Tracker:Input({Name = "Minutes To Send Webhook", Placeholder = "minutes", AcceptedCharacters = "Numeric", Callback = function(arg1)
     local num = tonumber(arg1) if num then Options.WebhookTimeInSeconds = num * 60 end
   end}, "WebhookTime")
-  local TrackerStatusLabel = shared.Tracker:SubLabel({Text = "COIN REPORTS ARE OFF"})
+  local TrackerStatusLabel = shared.Tracker:SubLabel({Text = "COIN TRACKER IS TURNED OFF"})
   shared.Tracker:Divider()
 
-  shared.Tracker:Toggle("BoxNotification", "Unbox Alerts", function(arg1)
+  shared.Tracker:Toggle("BoxNotification", "Unbox Notification", function(arg1)
     if not arg1 then
       if unboxConnection then unboxConnection:Disconnect() unboxConnection = nil end
     else
@@ -2115,26 +2107,26 @@
   end)
 
   -- قسم LocalPlayer
-  shared.Player:SubLabel({Text = "MOVEMENT"})
-  shared.Player:Toggle("WalkSpeed", "Custom Speed", function(arg1)
+  shared.Player:SubLabel({Text = "CHARACTER MODIFIERS"})
+  shared.Player:Toggle("WalkSpeed", "Walk Speed", function(arg1)
     if arg1 then
       repeat task.wait() SetStats(Options.WalkSpeedSlider:GetValue(), nil) until not Options.WalkSpeed:GetValue()
       SetStats(16, nil)
     end
   end)
-  shared.Player:Slider("WalkSpeedSlider", "Speed Value", 16, 100, 16, "Percent", function() end)
+  shared.Player:Slider("WalkSpeedSlider", "Walk Speed", 16, 100, 16, "Percent", function() end)
 
-  shared.Player:Toggle("Jump", "Custom Jump", function(arg1)
+  shared.Player:Toggle("Jump", "Jump Power", function(arg1)
     if arg1 then
       repeat task.wait() SetStats(nil, Options.JumpPower:GetValue()) until not Options.Jump:GetValue()
       SetStats(nil, 50)
     end
   end)
-  shared.Player:Slider("JumpPower", "Jump Value", 50, 100, 50, "Percent", function() end)
+  shared.Player:Slider("JumpPower", "Jump Power", 50, 100, 50, "Percent", function() end)
   shared.Player:Divider()
 
   local isInvis = false
-  shared.Player:Keybind("Invis", "Invisibility Key", function(arg1)
+  shared.Player:Keybind("Invis", "Invisible [FE]", function(arg1)
     if arg1 then
       isInvis = not isInvis
       if not isInvis then
@@ -2161,7 +2153,7 @@
     if chair then chair:Destroy() end
   end)
 
-  shared.Player:Toggle("AntiFling", "Fling Protection", function(arg1)
+  shared.Player:Toggle("AntiFling", "Anti Fling", function(arg1)
     if arg1 then
       antifling = RunService.Stepped:Connect(function()
         for _, p in pairs(Players:GetPlayers()) do
@@ -2246,18 +2238,18 @@
     while task.wait(0.5) do
       if shared.VertexLoaded ~= true then break end
       if not Options.CoinTracker:GetValue() then
-        TrackerStatusLabel:UpdateName("COIN REPORTS ARE OFF")
+        TrackerStatusLabel:UpdateName("COIN TRACKER IS TURNED OFF")
         table.clear(tbl5) table.clear(tbl6)
       else
         local cd = Options.WebhookTimeInSeconds or 60
         while cd > 0 and Options.CoinTracker:GetValue() do
-          TrackerStatusLabel:UpdateName("NEXT REPORT IN " .. cd .. " SECONDS")
+          TrackerStatusLabel:UpdateName("WEBHOOK SENDING IN " .. cd .. " SECONDS")
           task.wait(1) cd = cd - 1
         end
         if Options.CoinTracker:GetValue() then
-          TrackerStatusLabel:UpdateName("SENDING REPORT...")
+          TrackerStatusLabel:UpdateName("SENDING WEBHOOK...")
           for k, v in pairs(tbl5) do if v > 0 then SendCoinWebhook(v, k) end end
-          TrackerStatusLabel:UpdateName("REPORT SENT")
+          TrackerStatusLabel:UpdateName("WEBHOOK SENT SUCCESSFULLY")
           table.clear(tbl5)
         end
       end
