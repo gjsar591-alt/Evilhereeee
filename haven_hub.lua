@@ -2473,6 +2473,62 @@
 
   shared.Roles:Keybind("ShootBind", "Shoot Murderer Hotkey", function() pcall(function() EquipTool("Gun") ShootMurderer() end) end)
 
+  -- Aim Lock: يثبّت الكاميرا على القاتل / الشريف
+  shared.Roles:Divider()
+  shared.Roles:SubLabel({Text = "AIM LOCK"})
+
+  local function GetAimLockPart()
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil end
+    local mode = Options.AimLockTarget and Options.AimLockTarget:GetValue() or "Auto"
+    local partName = (Options.AimLockPart and Options.AimLockPart:GetValue() == "Body") and "HumanoidRootPart" or "Head"
+    local candidates = {}
+    if mode ~= "Sheriff" and v14 then table.insert(candidates, v14) end
+    if mode ~= "Murderer" and v15 then table.insert(candidates, v15) end
+    local bestPart, bestDist = nil, math.huge
+    for _, name in ipairs(candidates) do
+      local player = (name ~= LocalPlayer.Name) and Players:FindFirstChild(name)
+      local char = player and player.Character
+      local hum = char and char:FindFirstChildOfClass("Humanoid")
+      local part = char and (char:FindFirstChild(partName) or char:FindFirstChild("HumanoidRootPart"))
+      if part and hum and hum.Health > 0 and IsPlayerAlive(player, roles) then
+        local dist = (part.Position - myRoot.Position).Magnitude
+        if dist < bestDist then bestDist = dist bestPart = part end
+      end
+    end
+    return bestPart
+  end
+
+  local aimLockConn, aimLockBound = nil, false
+  local function StopAimLock()
+    if aimLockConn then aimLockConn:Disconnect() aimLockConn = nil end
+    if aimLockBound then pcall(function() RunService:UnbindFromRenderStep("HavenAimLock") end) aimLockBound = false end
+  end
+  local function AimLockStep(dt)
+    if shared.VertexLoaded ~= true or not Options.AimLock:GetValue() then StopAimLock() return end
+    pcall(function()
+      local cam = workspace.CurrentCamera
+      local part = GetAimLockPart()
+      if cam and part then
+        local smooth = Options.AimLockSmooth and Options.AimLockSmooth:GetValue() or 3
+        local alpha = math.clamp((dt or 0.016) * (44 - smooth * 4), 0, 1)
+        cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(cam.CFrame.Position, part.Position), alpha)
+      end
+    end)
+  end
+
+  shared.Roles:Toggle("AimLock", "Aim Lock (Sheriff & Murderer)", function(arg1)
+    StopAimLock()
+    if arg1 then
+      -- بعد تحديث كاميرا اللعبة مباشرة، ولو المشغل ما يدعمها نستخدم RenderStepped
+      local ok = pcall(function() RunService:BindToRenderStep("HavenAimLock", Enum.RenderPriority.Camera.Value + 1, AimLockStep) end)
+      if ok then aimLockBound = true else aimLockConn = RunService.RenderStepped:Connect(AimLockStep) end
+    end
+  end)
+  shared.Roles:Dropdown({Name = "Aim Lock Target", Multi = false, Required = true, Options = {"Auto", "Murderer", "Sheriff"}, Default = 1, Callback = function() end}, "AimLockTarget")
+  shared.Roles:Dropdown({Name = "Aim Lock Part", Multi = false, Required = true, Options = {"Head", "Body"}, Default = 1, Callback = function() end}, "AimLockPart")
+  shared.Roles:Slider("AimLockSmooth", "Aim Lock Smoothness", 1, 10, 3, "Percent", function() end)
+
   -- قسم Webhooks
   shared.Tracker:SubLabel({Text = "DISCORD WEBHOOK INTEGRATION"})
   local WebhookInput = shared.Tracker:Input({Name = "Webhook URL", Placeholder = "https://discord.com/api/webhooks/...", AcceptedCharacters = "All", Callback = function() end}, "Webhook")
