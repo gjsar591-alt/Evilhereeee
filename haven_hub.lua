@@ -2479,11 +2479,27 @@
   shared.Roles:Divider()
   shared.Roles:SubLabel({Text = "AIM LOCK"})
 
+  -- خيار Random: يختار جزء عشوائي من الجسم ويبدّله كل شوي
+  local AimRandomParts = {"Head", "UpperTorso", "Torso", "HumanoidRootPart", "LowerTorso"}
+  local aimRandomName, aimRandomUntil = "Head", 0
+  local function GetAimPartName()
+    local choice = Options.AimLockPart and Options.AimLockPart:GetValue() or "Head"
+    if choice == "Body" then return "HumanoidRootPart" end
+    if choice == "Random" then
+      if os.clock() >= aimRandomUntil then
+        aimRandomName = AimRandomParts[math.random(1, #AimRandomParts)]
+        aimRandomUntil = os.clock() + 0.6 + math.random() * 0.9
+      end
+      return aimRandomName
+    end
+    return "Head"
+  end
+
   local function GetAimLockPart()
     local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not myRoot then return nil end
     local mode = Options.AimLockTarget and Options.AimLockTarget:GetValue() or "Auto"
-    local partName = (Options.AimLockPart and Options.AimLockPart:GetValue() == "Body") and "HumanoidRootPart" or "Head"
+    local partName = GetAimPartName()
     local candidates = {}
     if mode == "Chosen Player" then
       local chosen = Options.AimLockPlayer and Options.AimLockPlayer:GetValue()
@@ -2519,8 +2535,8 @@
       local cam = workspace.CurrentCamera
       local part = GetAimLockPart()
       if cam and part then
-        local smooth = Options.AimLockSmooth and Options.AimLockSmooth:GetValue() or 3
-        local alpha = math.clamp((dt or 0.016) * (44 - smooth * 4), 0, 1)
+        local smooth = Options.AimLockSmooth and Options.AimLockSmooth:GetValue() or 5
+        local alpha = math.clamp((dt or 0.016) * (22 - smooth * 2), 0, 1)
         cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(cam.CFrame.Position, part.Position), alpha)
       end
     end)
@@ -2540,8 +2556,8 @@
   for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then AimLockPlayerDropdown:InsertOptions({p.Name}) end end
   local aimLockAdded = Players.PlayerAdded:Connect(function(p) AimLockPlayerDropdown:InsertOptions({p.Name}) end)
   local aimLockRemoving = Players.PlayerRemoving:Connect(function(p) AimLockPlayerDropdown:RemoveOptions({p.Name}) end)
-  shared.Roles:Dropdown({Name = "Aim Lock Part", Multi = false, Required = true, Options = {"Head", "Body"}, Default = 1, Callback = function() end}, "AimLockPart")
-  shared.Roles:Slider("AimLockSmooth", "Aim Lock Smoothness", 1, 10, 3, "Percent", function() end)
+  shared.Roles:Dropdown({Name = "Aim Lock Part", Multi = false, Required = true, Options = {"Head", "Body", "Random"}, Default = 1, Callback = function() end}, "AimLockPart")
+  shared.Roles:Slider("AimLockSmooth", "Aim Lock Smoothness", 1, 10, 5, "Percent", function() end)
 
   -- تفعيل اللوك بسرعة: زر عائم على الشاشة + مفتاح اختصار
   shared.Roles:Keybind("AimLockKey", "Aim Lock Hotkey", function() HavenLib.PlaySound("toggle") Options.AimLock:Toggle() end)
