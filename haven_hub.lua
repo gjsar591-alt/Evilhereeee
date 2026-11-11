@@ -1117,7 +1117,11 @@
           if opt.Class == "Toggle" then table.insert(data.objects, {type = "Toggle", flag = flag, state = opt.State or false})
           elseif opt.Class == "Slider" then table.insert(data.objects, {type = "Slider", flag = flag, value = tostring(opt.Value or 0)})
           elseif opt.Class == "Input" then table.insert(data.objects, {type = "Input", flag = flag, text = opt.Text or ""})
-          elseif opt.Class == "Dropdown" then table.insert(data.objects, {type = "Dropdown", flag = flag, value = opt.Value}) end
+          elseif opt.Class == "Dropdown" then table.insert(data.objects, {type = "Dropdown", flag = flag, value = opt.Value})
+          elseif opt.Class == "Keybind" then
+            local bind = opt.GetBind and opt:GetBind()
+            if bind then table.insert(data.objects, {type = "Keybind", flag = flag, key = bind.Name}) end
+          end
         end
         local ok, enc = pcall(HttpService.JSONEncode, HttpService, data)
         if ok then pcall(writefile, haven.Folder .. "/settings/" .. tostring(Path) .. ".json", enc) end
@@ -1138,7 +1142,11 @@
               if opt.type == "Toggle" and opt.state ~= nil then target:UpdateState(opt.state)
               elseif opt.type == "Slider" and opt.value then target:UpdateValue(opt.value)
               elseif opt.type == "Input" and opt.text then target:UpdateText(opt.text)
-              elseif opt.type == "Dropdown" and opt.value then target:UpdateSelection(opt.value) end
+              elseif opt.type == "Dropdown" and opt.value then target:UpdateSelection(opt.value)
+              elseif opt.type == "Keybind" and type(opt.key) == "string" and opt.key ~= "" then
+                local ok, key = pcall(function() return Enum.KeyCode[opt.key] end)
+                if ok and key then target:Bind(key) end
+              end
             end)
           end
         end
@@ -2525,7 +2533,9 @@
   end
 
   local aimLockConn, aimLockBound = nil, false
+  local aimLook = nil
   local function StopAimLock()
+    aimLook = nil
     if aimLockConn then aimLockConn:Disconnect() aimLockConn = nil end
     if aimLockBound then pcall(function() RunService:UnbindFromRenderStep("HavenAimLock") end) aimLockBound = false end
   end
@@ -2537,7 +2547,16 @@
       if cam and part then
         local smooth = Options.AimLockSmooth and Options.AimLockSmooth:GetValue() or 5
         local alpha = math.clamp((dt or 0.016) * (22 - smooth * 2), 0, 1)
-        cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(cam.CFrame.Position, part.Position), alpha)
+        local camPos = cam.CFrame.Position
+        local offset = part.Position - camPos
+        if offset.Magnitude > 0.05 then
+          local desired = offset.Unit
+          aimLook = (aimLook or cam.CFrame.LookVector):Lerp(desired, alpha)
+          if aimLook.Magnitude < 0.001 then aimLook = desired end
+          cam.CFrame = CFrame.lookAt(camPos, camPos + aimLook.Unit)
+        end
+      else
+        aimLook = nil
       end
     end)
   end
@@ -2560,7 +2579,8 @@
   shared.Roles:Slider("AimLockSmooth", "Aim Lock Smoothness", 1, 10, 5, "Percent", function() end)
 
   -- تفعيل اللوك بسرعة: زر عائم على الشاشة + مفتاح اختصار
-  shared.Roles:Keybind("AimLockKey", "Aim Lock Hotkey", function() HavenLib.PlaySound("toggle") Options.AimLock:Toggle() end)
+  local AimLockKeybind = shared.Roles:Keybind("AimLockKey", "Aim Lock Hotkey", function() HavenLib.PlaySound("toggle") Options.AimLock:Toggle() end)
+  AimLockKeybind:Bind(Enum.KeyCode.X) -- مفتاح افتراضي، تقدر تغيّره من الواجهة
   shared.Roles:Toggle("AimLockButton", "Show Aim Lock Button", {State = true}, function() end)
 
   local aimLockGui
