@@ -72,7 +72,7 @@
       buttonImage     = "rbxassetid://10709791437",
       shadowImage     = "rbxassetid://1316045217",
       settingsImage   = "rbxassetid://18767849817",
-      chevronImage    = "rbxassetid://18865373378"
+      chevronImage    = "rbxassetid://10709790948"
     }
 
     local function Tween(inst, info, props)
@@ -1659,7 +1659,7 @@
 
   local function ResetOrLobby()
     pcall(function()
-      if Options.Mode:GetValue() == "Nearest" then LocalPlayer.Character.Humanoid.Health = 0 return end
+      if Options.Mode:GetValue() == "Closest + Reset" then LocalPlayer.Character.Humanoid.Health = 0 return end
       for _, child in pairs(workspace:GetChildren()) do
         if (child:IsA("Model") or child:IsA("Folder")) and string.find(string.lower(child.Name), "lobby") then
           for _, desc in pairs(child:GetDescendants()) do
@@ -1704,7 +1704,7 @@
       if mag > 200 then
         rootPart.CFrame = cf * CFrame.new(0, 10, 0) task.wait(2)
         TweenTo(cf * CFrame.new(0, 1.5, 0), 5000, false)
-      elseif Options.Mode:GetValue() == "Randomize" then
+      elseif Options.Mode:GetValue() == "Random Coins" then
         TweenTo(cf * CFrame.new(0, 1.5, 0), 20, true, true, coin)
       else
         TweenTo(cf * CFrame.new(0, 1.5, 0), speed, false)
@@ -1721,7 +1721,7 @@
 
       local function farmStep()
         if not Options.AutoFarm:GetValue() or not IsPlayerAlive(LocalPlayer, roles) or not root then return end
-        local mode = (Options.Mode:GetValue() == "Nearest" or Options.Mode:GetValue() == "Nearest Farm") and "closest" or "random"
+        local mode = (Options.Mode:GetValue() == "Closest + Reset" or Options.Mode:GetValue() == "Closest Coins") and "closest" or "random"
         local coin = FindCoin(root, mode)
         if coin and v18 ~= coin then EnableFloat() MoveToCoin(coin, root) v18 = coin end
       end
@@ -1792,7 +1792,7 @@
     DisableFloat()
   end)
 
-  shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Nearest Farm", "Nearest", "Randomize"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
+  shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Closest Coins", "Closest + Reset", "Random Coins"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
   shared.Main:Divider()
   shared.Main:SubLabel({Text = "SURVIVAL & ROUND UTILITIES"})
 
