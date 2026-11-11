@@ -95,6 +95,25 @@
       return Font.new(assets.interFont, weight, Enum.FontStyle.Normal)
     end
 
+    -- أصوات الواجهة: ملفات مدمجة مع Roblox نفسه (بدون تحميل وبدون صلاحيات صوت)
+    local SoundIds = {click = "rbxasset://sounds/clickfast.wav", toggle = "rbxasset://sounds/switch.wav"}
+    local soundsEnabled, soundCache, soundParent = true, {}, nil
+    local function PlaySound(kind)
+      if not soundsEnabled then return end
+      pcall(function()
+        local sound = soundCache[kind]
+        if not sound then
+          sound = Instance.new("Sound")
+          sound.Name = "HavenSound_" .. kind
+          sound.SoundId = SoundIds[kind] or SoundIds.click
+          sound.Volume = 0.5
+          sound.Parent = soundParent
+          soundCache[kind] = sound
+        end
+        Services.SoundService:PlayLocalSound(sound)
+      end)
+    end
+
     local function AttachCardHover(cardFrame, strokeObj)
       cardFrame.MouseEnter:Connect(function()
         Tween(cardFrame, TweenInfo.new(0.18, Enum.EasingStyle.Sine), {BackgroundColor3 = Theme.CardHover}):Play()
@@ -123,6 +142,7 @@
 
       local screenGui = Create("ScreenGui", {Name = "HavenHubUI", ResetOnSpawn = false, DisplayOrder = 100, IgnoreGuiInset = true, ScreenInsets = Enum.ScreenInsets.None, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
       SafeParentGui(screenGui)
+      soundParent = screenGui
       local notifications = Create("Frame", {Name = "Notifications", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 20, Parent = screenGui}, {
         Create("UIListLayout", {Padding = UDim.new(0, 10), HorizontalAlignment = Enum.HorizontalAlignment.Right, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Bottom}),
         Create("UIPadding", {PaddingBottom = UDim.new(0, 14), PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14), PaddingTop = UDim.new(0, 14)})
@@ -135,13 +155,23 @@
 
       -- تصغير تلقائي لو الشاشة أصغر من النافذة (الجوال)
       local fitScale = 1
-      pcall(function()
-        local vp = workspace.CurrentCamera.ViewportSize
-        local sx = (windowSize.X.Offset > 0) and ((vp.X - 16) / windowSize.X.Offset) or 1
-        local sy = (windowSize.Y.Offset > 0) and ((vp.Y - 16) / windowSize.Y.Offset) or 1
-        fitScale = math.clamp(math.min(sx, sy), 0.5, 1)
-      end)
+      local function ComputeFit()
+        pcall(function()
+          local vp = workspace.CurrentCamera.ViewportSize
+          local sx = (windowSize.X.Offset > 0) and ((vp.X - 16) / windowSize.X.Offset) or 1
+          local sy = (windowSize.Y.Offset > 0) and ((vp.Y - 16) / windowSize.Y.Offset) or 1
+          fitScale = math.clamp(math.min(sx, sy), 0.4, 1)
+        end)
+      end
+      ComputeFit()
       local baseScale = Create("UIScale", {Name = "BaseUIScale", Scale = fitScale, Parent = base})
+      -- لو تغيّر حجم الشاشة أو انقلب الجوال: نعيد حساب الحجم
+      pcall(function()
+        workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+          ComputeFit()
+          baseScale.Scale = fitScale
+        end)
+      end)
 
       local baseStroke = Create("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(255, 255, 255), Thickness = 1.2, Transparency = 0.15, Parent = base})
       Create("UIGradient", {Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Theme.Accent), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(44, 44, 50)), ColorSequenceKeypoint.new(1, Theme.Accent)}), Rotation = 35, Parent = baseStroke})
@@ -191,6 +221,7 @@
         })
         btn.MouseEnter:Connect(function() Tween(btn, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {BackgroundColor3 = hoverColor}):Play() end)
         btn.MouseLeave:Connect(function() Tween(btn, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {BackgroundColor3 = Theme.CardBg}):Play() end)
+        btn.MouseButton1Click:Connect(function() PlaySound("click") end)
         return btn
       end
       local globalSettingsButton = ControlButton("GlobalSettingsButton", 0, Theme.CardHover)
@@ -265,6 +296,7 @@
         gsBtn.MouseEnter:Connect(function() Tween(gsBtn, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {BackgroundTransparency = 0.45}):Play() end)
         gsBtn.MouseLeave:Connect(function() Tween(gsBtn, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {BackgroundTransparency = 1}):Play() end)
         gsBtn.MouseButton1Click:Connect(function()
+          PlaySound("toggle")
           st = not st
           local info = TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
           Tween(gsSwitch, info, {BackgroundColor3 = st and Theme.Accent or Theme.ToggleOff}):Play()
@@ -357,7 +389,7 @@
                 Tween(button, TweenInfo.new(0.18, Enum.EasingStyle.Sine), {BackgroundTransparency = 0.86}):Play()
                 Tween(bStroke, TweenInfo.new(0.18, Enum.EasingStyle.Sine), {Transparency = 0.55}):Play()
               end)
-              buttonInteract.MouseButton1Click:Connect(function() if bSettings.Callback then bSettings.Callback() end end)
+              buttonInteract.MouseButton1Click:Connect(function() PlaySound("click") if bSettings.Callback then bSettings.Callback() end end)
               return {UpdateName = function(_, n) buttonInteract.Text = n end, SetVisibility = function(_, s) buttonRow.Visible = s end}
             end
 
@@ -391,7 +423,7 @@
                 togglebool = not togglebool ToggleState(togglebool)
                 if ToggleFunctions.Callback then task.spawn(ToggleFunctions.Callback, togglebool) end
               end
-              interact.MouseButton1Click:Connect(DoToggle)
+              interact.MouseButton1Click:Connect(function() PlaySound("toggle") DoToggle() end)
               function ToggleFunctions:Toggle() DoToggle() end
               function ToggleFunctions:UpdateState(State)
                 togglebool = State ToggleState(togglebool) Options[Flag] = self
@@ -437,7 +469,7 @@
                 SliderFunctions.Value = finalValue
               end
               SetValue(Default, true)
-              touchArea.InputBegan:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then dragging = true SetValue(inp) end end)
+              touchArea.InputBegan:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then dragging = true PlaySound("click") SetValue(inp) end end)
               touchArea.InputEnded:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
               UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
               sliderValue.FocusLost:Connect(function()
@@ -465,6 +497,7 @@
                 Create("UIPadding", {PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)}),
                 Create("UISizeConstraint", {MaxSize = Vector2.new(175, 999)})
               })
+              inputBox.Focused:Connect(function() PlaySound("click") end)
               inputBox.FocusLost:Connect(function()
                 if iSettings.AcceptedCharacters == "Numeric" then inputBox.Text = inputBox.Text:gsub("[^%d-]", "") end
                 InputFunctions.Text = inputBox.Text
@@ -490,12 +523,24 @@
                 Create("UIPadding", {PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)})
               })
               local focused, skipNextKey, binded = false, nil, nil
+              -- على أجهزة اللمس: زر RUN يشغّل الأمر بدون كيبورد
+              if UserInputService.TouchEnabled then
+                local runButton = Create("TextButton", {Name = "RunButton", FontFace = InterFont(Enum.FontWeight.Bold), Text = "RUN", TextColor3 = Theme.Text, TextSize = 10, AutoButtonColor = false, AnchorPoint = Vector2.new(1, 0.5), BackgroundColor3 = Theme.Accent, BackgroundTransparency = 0.15, BorderSizePixel = 0, Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(46, 24), ZIndex = 2, Parent = keybind}, {
+                  Create("UICorner", {CornerRadius = UDim.new(0, 6)})
+                })
+                binderBox.Position = UDim2.new(1, -66, 0.5, 0)
+                keybindName.Size = UDim2.new(1, -150, 1, 0)
+                runButton.MouseButton1Click:Connect(function()
+                  PlaySound("click")
+                  if KeybindFunctions.Callback then task.spawn(KeybindFunctions.Callback, binded or Enum.KeyCode.Unknown) end
+                end)
+              end
               function KeybindFunctions:Bind(Key) if Key then binded = Key binderBox.Text = Key.Name else binded = nil binderBox.Text = "NONE" end end
               function KeybindFunctions:GetBind() return binded end
               function KeybindFunctions:SetBind(Key) KeybindFunctions:Bind(Key) end
               function KeybindFunctions:UpdateName(n) keybindName.Text = n end
               function KeybindFunctions:SetVisibility(s) keybind.Visible = s end
-              binderBox.Focused:Connect(function() focused = true binderBox.Text = "..." end)
+              binderBox.Focused:Connect(function() PlaySound("click") focused = true binderBox.Text = "..." end)
               binderBox.FocusLost:Connect(function() focused = false binderBox.Text = binded and binded.Name or "NONE" end)
               UserInputService.InputBegan:Connect(function(inp)
                 if focused and inp.UserInputType == Enum.UserInputType.Keyboard and inp.KeyCode ~= Enum.KeyCode.Unknown then
@@ -545,6 +590,7 @@
               end
               local dropped = false
               interact.MouseButton1Click:Connect(function()
+                PlaySound("click")
                 dropped = not dropped dropdownFrame.Visible = dropped
                 Tween(chevron, TweenInfo.new(0.2, Enum.EasingStyle.Sine), {Rotation = dropped and 180 or 0}):Play()
                 Tween(dropdown, TweenInfo.new(0.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = dropped and UDim2.new(1, 0, 0, CalculateDropdownSize()) or UDim2.new(1, 0, 0, 38)}):Play()
@@ -560,6 +606,7 @@
                 local optionName = Create("TextLabel", {FontFace = InterFont(Enum.FontWeight.Medium), Text = v, RichText = true, TextColor3 = Theme.Text, TextSize = 12, TextTransparency = 0.5, TextXAlignment = Enum.TextXAlignment.Left, AutomaticSize = Enum.AutomaticSize.XY, BackgroundTransparency = 1, ZIndex = 3, Parent = option})
                 OptionObjs[v] = {Index = i, Button = option, NameLabel = optionName, Dot = dot}
                 option.MouseButton1Click:Connect(function()
+                  PlaySound("click")
                   ToggleOption(v)
                   if DropdownFunctions.Callback then task.spawn(DropdownFunctions.Callback, Selected[1]) end
                 end)
@@ -627,11 +674,12 @@
             if tabImage then Tween(tabImage, tabInfo, {ImageColor3 = Theme.Text}):Play() end
           end
 
-          tabSwitcher.MouseButton1Click:Connect(SelectCurrentTab)
+          tabSwitcher.MouseButton1Click:Connect(function() PlaySound("click") SelectCurrentTab() end)
           function TabFunctions:Select() SelectCurrentTab() end
           function TabFunctions:InsertConfigSection(_, THISWINDOW)
             THISWINDOW:GlobalSetting({Name = "Glass Window", Default = THISWINDOW:GetAcrylicBlurState(), Callback = function(b) THISWINDOW:SetAcrylicBlurState(b) end})
             THISWINDOW:GlobalSetting({Name = "Show My Profile", Default = THISWINDOW:GetUserInfoState(), Callback = function(b) THISWINDOW:SetUserInfoState(b) end})
+            THISWINDOW:GlobalSetting({Name = "Click Sounds", Default = THISWINDOW:GetSoundsEnabled(), Callback = function(b) THISWINDOW:SetSoundsEnabled(b) end})
             local configSection = TabFunctions:Section({Side = "Left"})
             configSection:SubLabel({Text = "CONFIGURATION & SERVER CONTROLS"})
             configSection:Toggle("SaveSettings", "Auto Save Settings", function()
@@ -706,7 +754,7 @@
             Create("UICorner", {CornerRadius = UDim.new(0, 8)}),
             Create("UIPadding", {PaddingBottom = UDim.new(0, 8), PaddingTop = UDim.new(0, 8)})
           })
-          btn.MouseButton1Click:Connect(function() if v.Callback then v.Callback() end dialog:Destroy() end)
+          btn.MouseButton1Click:Connect(function() PlaySound("click") if v.Callback then v.Callback() end dialog:Destroy() end)
         end
       end
 
@@ -719,6 +767,8 @@
         end
       end
       function WindowFunctions:GetState() return windowState end
+      function WindowFunctions:SetSoundsEnabled(State) soundsEnabled = (State == true) end
+      function WindowFunctions:GetSoundsEnabled() return soundsEnabled end
       function WindowFunctions:SetAcrylicBlurState(State) acrylicBlur = State base.BackgroundTransparency = State and 0.03 or 0 end
       function WindowFunctions:GetAcrylicBlurState() return acrylicBlur end
       local showUserInfo = true
@@ -843,7 +893,7 @@
           end
         end)
         UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then bStart = nil bDrag = false end end)
-        cBtn.Activated:Connect(function() if not bMoved then WindowFunctions:SetState(not WindowFunctions:GetState()) end end)
+        cBtn.Activated:Connect(function() if not bMoved then PlaySound("click") WindowFunctions:SetState(not WindowFunctions:GetState()) end end)
       end)
 
       return WindowFunctions
@@ -857,8 +907,12 @@
   -- ============================================================================
   local HavenLoader = (function()
     local loader = {Active = false}
-    local gui, dim, cardScale, baseScale, renderConn
+    local gui, cardScale, baseScale, renderConn
     local shown, target = 0, 0
+    local visibility, visTarget = 0, 1
+    local MIN_TIME = 6 -- أقل مدة تبقى فيها شاشة التحميل (بالثواني)
+    local startedAt = os.clock()
+    local fadeItems, particles = {}, {}
 
     -- شعار Haven Hub (PNG 256x256 شفاف) مدمج داخل السكربت بصيغة Base64
     local LOGO_B64 = table.concat({
@@ -1308,7 +1362,23 @@
     local RED       = Color3.fromRGB(225, 29, 46)
     local TRACK     = Color3.fromRGB(62, 62, 68)
     local WHITE     = Color3.fromRGB(255, 255, 255)
+    local GREY      = Color3.fromRGB(165, 165, 172)
     local FONT_ID   = "rbxassetid://12187365364"
+
+    local STAGES = {
+      {0, "INITIALIZING"},
+      {18, "CONNECTING TO GAME"},
+      {38, "BUILDING INTERFACE"},
+      {60, "LOADING FEATURES"},
+      {85, "FINISHING UP"},
+      {100, "READY"}
+    }
+    local TIPS = {
+      "Press LeftControl or tap the logo button to show or hide the hub",
+      "Use the bar button at the top to shrink the hub on small screens",
+      "Open the gear button for quick settings like click sounds",
+      "Your settings can be saved automatically from the Settings tab"
+    }
 
     local function New(className, props, parent)
       local inst = Instance.new(className)
@@ -1321,6 +1391,17 @@
       local f = New("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(size, size), BackgroundColor3 = color, BackgroundTransparency = transparency, BorderSizePixel = 0, ZIndex = zindex or 1}, parent)
       New("UICorner", {CornerRadius = UDim.new(1, 0)}, f)
       return f
+    end
+
+    -- عنصر يظهر ويختفي تدريجياً مع الشاشة (prop يبدأ من 1 = مخفي)
+    local function Fade(inst, prop, shownValue)
+      inst[prop] = 1
+      fadeItems[#fadeItems + 1] = {inst, prop, shownValue}
+      return inst
+    end
+
+    local function Font_(weight)
+      return Font.new(FONT_ID, weight, Enum.FontStyle.Normal)
     end
 
     local built = pcall(function()
@@ -1336,31 +1417,73 @@
       gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
       if not SafeParentGui(gui) then error("no gui parent") end
 
-      dim = New("Frame", {Name = "Dim", Active = true, BackgroundColor3 = Color3.fromRGB(8, 8, 10), BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1)}, gui)
+      -- ====================== الخلفية (كامل الشاشة) ======================
+      local backdrop = New("Frame", {Name = "Backdrop", Active = true, BackgroundColor3 = WHITE, BorderSizePixel = 0, ClipsDescendants = true, Size = UDim2.fromScale(1, 1)}, gui)
+      New("UIGradient", {Rotation = 90, Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(38, 7, 12)),
+        ColorSequenceKeypoint.new(0.45, Color3.fromRGB(7, 7, 9)),
+        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(7, 7, 9)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(34, 6, 11))
+      })}, backdrop)
+      Fade(backdrop, "BackgroundTransparency", 0.1)
 
-      local card = New("Frame", {Name = "Card", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(420, 400), BackgroundTransparency = 1, BorderSizePixel = 0}, gui)
+      -- جزيئات صغيرة تطفو للأعلى
+      for i = 1, 28 do
+        local size = math.random(2, 5)
+        local frame = New("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = (i % 3 == 0) and WHITE or RED, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromOffset(size, size)}, backdrop)
+        New("UICorner", {CornerRadius = UDim.new(1, 0)}, frame)
+        particles[i] = {frame = frame, x = math.random(), y = math.random(), speed = 0.02 + math.random() * 0.05, alpha = 0.2 + math.random() * 0.45, sway = math.random() * 6.28}
+      end
 
-      -- تصغير تلقائي للشاشات الصغيرة (الجوال)
+      -- خط مسح أفقي يتحرك على الشاشة
+      local scan = New("Frame", {Name = "ScanLine", BackgroundColor3 = RED, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1)}, backdrop)
+      New("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0), NumberSequenceKeypoint.new(1, 1)})}, scan)
+      Fade(scan, "BackgroundTransparency", 0.55)
+
+      -- زوايا الإطار في أركان الشاشة
+      local corners = {
+        {Vector2.new(0, 0), UDim2.fromOffset(22, 22)},
+        {Vector2.new(1, 0), UDim2.new(1, -22, 0, 22)},
+        {Vector2.new(0, 1), UDim2.new(0, 22, 1, -22)},
+        {Vector2.new(1, 1), UDim2.new(1, -22, 1, -22)}
+      }
+      for _, c in ipairs(corners) do
+        Fade(New("Frame", {AnchorPoint = c[1], BackgroundColor3 = RED, BorderSizePixel = 0, Position = c[2], Size = UDim2.fromOffset(30, 2)}, backdrop), "BackgroundTransparency", 0.3)
+        Fade(New("Frame", {AnchorPoint = c[1], BackgroundColor3 = RED, BorderSizePixel = 0, Position = c[2], Size = UDim2.fromOffset(2, 30)}, backdrop), "BackgroundTransparency", 0.3)
+      end
+
+      -- نصوص الأطراف
+      Fade(New("TextLabel", {Name = "Brand", BackgroundTransparency = 1, Position = UDim2.fromOffset(40, 34), Size = UDim2.fromOffset(200, 16), Text = "HAVEN HUB", TextColor3 = WHITE, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, FontFace = Font_(Enum.FontWeight.Bold)}, backdrop), "TextTransparency", 0.1)
+      Fade(New("TextLabel", {Name = "Game", AnchorPoint = Vector2.new(1, 0), BackgroundTransparency = 1, Position = UDim2.new(1, -40, 0, 34), Size = UDim2.fromOffset(220, 16), Text = "MURDER MYSTERY 2", TextColor3 = GREY, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Right, FontFace = Font_(Enum.FontWeight.SemiBold)}, backdrop), "TextTransparency", 0.2)
+      local tip = Fade(New("TextLabel", {Name = "Tip", AnchorPoint = Vector2.new(0.5, 1), BackgroundTransparency = 1, Position = UDim2.new(0.5, 0, 1, -34), Size = UDim2.new(1, -100, 0, 16), Text = TIPS[1], TextColor3 = GREY, TextSize = 11, TextTruncate = Enum.TextTruncate.AtEnd, FontFace = Font_(Enum.FontWeight.Medium)}, backdrop), "TextTransparency", 0.25)
+
+      -- ====================== المحتوى في الوسط ======================
+      local card = New("Frame", {Name = "Card", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(440, 410), BackgroundTransparency = 1, BorderSizePixel = 0}, gui)
+
+      -- يصغر تلقائياً على الجوال ويكبر شوي على الشاشات الكبيرة
       baseScale = 1
       pcall(function()
         local vp = workspace.CurrentCamera.ViewportSize
-        baseScale = math.clamp(math.min(vp.X / 460, vp.Y / 440), 0.45, 1)
+        baseScale = math.clamp(math.min(vp.X / 520, vp.Y / 520), 0.4, 1.25)
       end)
       cardScale = New("UIScale", {Scale = baseScale * 0.8}, card)
 
-      -- منطقة الشعار
-      local holder = New("Frame", {Name = "LogoHolder", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 26), Size = UDim2.fromOffset(230, 230), BackgroundTransparency = 1}, card)
+      local holder = New("Frame", {Name = "LogoHolder", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.fromOffset(290, 290), BackgroundTransparency = 1}, card)
 
-      -- الحلقة الخارجية الباهتة
+      -- حلقة خارجية كبيرة تدور ببطء
+      local ringOuter = Circle(282, WHITE, 1, holder, 2)
+      local outerStroke = New("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = RED, Thickness = 1, Transparency = 0}, ringOuter)
+      local outerGrad = New("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(0.3, 1), NumberSequenceKeypoint.new(0.7, 1), NumberSequenceKeypoint.new(1, 0.35)})}, outerStroke)
+      local ringMid = Circle(246, WHITE, 1, holder, 2)
+      local midStroke = New("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = WHITE, Thickness = 1, Transparency = 0}, ringMid)
+      local midGrad = New("UIGradient", {Rotation = 90, Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(0.25, 1), NumberSequenceKeypoint.new(0.75, 1), NumberSequenceKeypoint.new(1, 0.6)})}, midStroke)
+
+      -- الحلقة الباهتة + القوس الأبيض + القوس الأحمر
       local ringBase = Circle(208, WHITE, 1, holder, 4)
       New("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = TRACK, Thickness = 1, Transparency = 0.35}, ringBase)
-
-      -- القوس الأبيض الدوار
       local ringWhite = Circle(208, WHITE, 1, holder, 5)
       local whiteStroke = New("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = WHITE, Thickness = 2, Transparency = 0}, ringWhite)
       local whiteGrad = New("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.45, 0.85), NumberSequenceKeypoint.new(0.6, 1), NumberSequenceKeypoint.new(1, 1)})}, whiteStroke)
-
-      -- القوس الأحمر الداخلي
       local ringRed = Circle(190, WHITE, 1, holder, 5)
       local redStroke = New("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = RED, Thickness = 3, Transparency = 0}, ringRed)
       local redGrad = New("UIGradient", {Rotation = 180, Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.5, 0.8), NumberSequenceKeypoint.new(0.7, 1), NumberSequenceKeypoint.new(1, 1)})}, redStroke)
@@ -1371,42 +1494,72 @@
       New("UICorner", {CornerRadius = UDim.new(1, 0)}, dot)
 
       -- الشعار (صورة) أو حرف H احتياطي لو المشغل ما يدعم getcustomasset
+      local logo
       if logoAsset then
-        New("ImageLabel", {Name = "Logo", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(158, 158), BackgroundTransparency = 1, Image = logoAsset, ScaleType = Enum.ScaleType.Fit, ZIndex = 7}, holder)
+        logo = New("ImageLabel", {Name = "Logo", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(158, 158), BackgroundTransparency = 1, Image = logoAsset, ScaleType = Enum.ScaleType.Fit, ZIndex = 7}, holder)
       else
-        New("TextLabel", {Name = "Logo", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(150, 150), BackgroundTransparency = 1, Text = "H", TextColor3 = WHITE, TextSize = 96, FontFace = Font.new(FONT_ID, Enum.FontWeight.Bold, Enum.FontStyle.Italic), ZIndex = 7}, holder)
+        logo = New("TextLabel", {Name = "Logo", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(150, 150), BackgroundTransparency = 1, Text = "H", TextColor3 = WHITE, TextSize = 96, FontFace = Font.new(FONT_ID, Enum.FontWeight.Bold, Enum.FontStyle.Italic), ZIndex = 7}, holder)
       end
+      local logoScale = New("UIScale", {Scale = 1}, logo)
 
       -- النصوص
-      New("TextLabel", {Name = "Title", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 276), Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, Text = "H A V E N   H U B", TextColor3 = WHITE, TextSize = 25, FontFace = Font.new(FONT_ID, Enum.FontWeight.Bold, Enum.FontStyle.Normal)}, card)
-      New("TextLabel", {Name = "Status", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 312), Size = UDim2.new(1, 0, 0, 14), BackgroundTransparency = 1, Text = "L O A D I N G", TextColor3 = RED, TextSize = 11, FontFace = Font.new(FONT_ID, Enum.FontWeight.Bold, Enum.FontStyle.Normal)}, card)
+      New("TextLabel", {Name = "Title", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 300), Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, Text = "H A V E N   H U B", TextColor3 = WHITE, TextSize = 26, FontFace = Font_(Enum.FontWeight.Bold)}, card)
+      local status = New("TextLabel", {Name = "Status", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 336), Size = UDim2.new(1, 0, 0, 14), BackgroundTransparency = 1, Text = STAGES[1][2], TextColor3 = RED, TextSize = 11, FontFace = Font_(Enum.FontWeight.Bold)}, card)
 
       -- شريط التقدم
-      local track = New("Frame", {Name = "Track", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 345), Size = UDim2.fromOffset(240, 2), BackgroundColor3 = TRACK, BorderSizePixel = 0}, card)
+      local track = New("Frame", {Name = "Track", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 370), Size = UDim2.fromOffset(300, 3), BackgroundColor3 = TRACK, BorderSizePixel = 0}, card)
       New("UICorner", {CornerRadius = UDim.new(1, 0)}, track)
-      local fill = New("Frame", {Name = "Fill", Size = UDim2.fromScale(0, 1), BackgroundColor3 = RED, BorderSizePixel = 0}, track)
+      local fill = New("Frame", {Name = "Fill", Size = UDim2.fromScale(0, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0}, track)
       New("UICorner", {CornerRadius = UDim.new(1, 0)}, fill)
-      local knob = New("Frame", {Name = "Knob", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(7, 7), BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 2}, track)
+      New("UIGradient", {Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(140, 16, 28)), ColorSequenceKeypoint.new(1, RED)})}, fill)
+      local knob = New("Frame", {Name = "Knob", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(9, 9), BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 2}, track)
       New("UICorner", {CornerRadius = UDim.new(1, 0)}, knob)
-      local percent = New("TextLabel", {Name = "Percent", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 356), Size = UDim2.new(1, 0, 0, 14), BackgroundTransparency = 1, Text = "0%", TextColor3 = WHITE, TextSize = 11, TextTransparency = 0.1, FontFace = Font.new(FONT_ID, Enum.FontWeight.Medium, Enum.FontStyle.Normal)}, card)
+      New("UIStroke", {Color = RED, Thickness = 2, Transparency = 0.4}, knob)
+      local percent = New("TextLabel", {Name = "Percent", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 384), Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1, Text = "0%", TextColor3 = WHITE, TextSize = 13, TextTransparency = 0.05, FontFace = Font_(Enum.FontWeight.SemiBold)}, card)
 
-      -- حركة الدوران + تحديث النسبة
+      -- الحركة: الدوران + الجزيئات + النسبة
       local angle = 0
       renderConn = RunService.RenderStepped:Connect(function(dt)
+        local now = os.clock()
+        local elapsed = now - startedAt
+
         angle = (angle + dt * 150) % 360
         orbit.Rotation = angle
         whiteGrad.Rotation = angle
         redGrad.Rotation = (180 - angle * 0.6) % 360
-        shown = shown + (target - shown) * math.min(1, dt * 7)
-        if target - shown < 0.05 then shown = target end
+        outerGrad.Rotation = (angle * 0.3) % 360
+        midGrad.Rotation = (90 - angle * 0.45) % 360
+        logoScale.Scale = 1 + math.sin(now * 2.2) * 0.025
+
+        visibility = visibility + (visTarget - visibility) * math.min(1, dt * 5)
+        for _, item in ipairs(fadeItems) do
+          item[1][item[2]] = 1 - (1 - item[3]) * visibility
+        end
+        for _, p in ipairs(particles) do
+          p.y = p.y - p.speed * dt
+          if p.y < -0.05 then p.y = 1.05 p.x = math.random() end
+          p.frame.Position = UDim2.fromScale(p.x + math.sin(now * 0.6 + p.sway) * 0.01, p.y)
+          p.frame.BackgroundTransparency = 1 - p.alpha * visibility
+        end
+        scan.Position = UDim2.fromScale(0, (now * 0.12) % 1.1 - 0.05)
+        tip.Text = TIPS[math.floor(elapsed / 3) % #TIPS + 1]
+
+        -- النسبة ما تسبق الوقت الأدنى، فالشاشة تبقى MIN_TIME ثواني على الأقل
+        local goal = math.min(target, math.min(100, elapsed / MIN_TIME * 100))
+        shown = shown + (goal - shown) * math.min(1, dt * 6)
+        if math.abs(goal - shown) < 0.05 then shown = goal end
         local alpha = math.clamp(shown / 100, 0, 1)
         fill.Size = UDim2.fromScale(alpha, 1)
         knob.Position = UDim2.fromScale(alpha, 0.5)
         percent.Text = tostring(math.floor(shown + 0.5)) .. "%"
+        local stageText = STAGES[1][2]
+        for _, stage in ipairs(STAGES) do
+          if shown + 0.5 >= stage[1] then stageText = stage[2] end
+        end
+        status.Text = (shown >= 99.5) and stageText or (stageText .. string.rep(".", math.floor(now * 2) % 4))
       end)
 
-      TweenService:Create(dim, TweenInfo.new(0.3, Enum.EasingStyle.Sine), {BackgroundTransparency = 0.3}):Play()
-      TweenService:Create(cardScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = baseScale}):Play()
+      TweenService:Create(cardScale, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = baseScale}):Play()
     end)
 
     if built then
@@ -1428,11 +1581,11 @@
       pcall(function()
         target = 100
         local started = os.clock()
-        repeat task.wait() until shown >= 99.5 or os.clock() - started > 2
-        task.wait(0.35)
-        TweenService:Create(dim, TweenInfo.new(0.3, Enum.EasingStyle.Sine), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(cardScale, TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.In), {Scale = 0}):Play()
-        task.wait(0.32)
+        repeat task.wait() until shown >= 99.5 or os.clock() - started > MIN_TIME + 3
+        task.wait(0.5)
+        visTarget = 0
+        TweenService:Create(cardScale, TweenInfo.new(0.35, Enum.EasingStyle.Exponential, Enum.EasingDirection.In), {Scale = 0}):Play()
+        task.wait(0.5)
       end)
       pcall(function() if renderConn then renderConn:Disconnect() end end)
       pcall(function() if gui then gui:Destroy() end end)
