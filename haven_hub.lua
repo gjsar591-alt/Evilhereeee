@@ -2483,8 +2483,15 @@
     local mode = Options.AimLockTarget and Options.AimLockTarget:GetValue() or "Auto"
     local partName = (Options.AimLockPart and Options.AimLockPart:GetValue() == "Body") and "HumanoidRootPart" or "Head"
     local candidates = {}
-    if mode ~= "Sheriff" and v14 then table.insert(candidates, v14) end
-    if mode ~= "Murderer" and v15 then table.insert(candidates, v15) end
+    if mode == "Chosen Player" then
+      local chosen = Options.AimLockPlayer and Options.AimLockPlayer:GetValue()
+      if chosen then table.insert(candidates, chosen) end
+    elseif mode == "Nearest Player" then
+      for _, p in ipairs(Players:GetPlayers()) do table.insert(candidates, p.Name) end
+    else
+      if mode ~= "Sheriff" and v14 then table.insert(candidates, v14) end
+      if mode ~= "Murderer" and v15 then table.insert(candidates, v15) end
+    end
     local bestPart, bestDist = nil, math.huge
     for _, name in ipairs(candidates) do
       local player = (name ~= LocalPlayer.Name) and Players:FindFirstChild(name)
@@ -2517,7 +2524,7 @@
     end)
   end
 
-  shared.Roles:Toggle("AimLock", "Aim Lock (Sheriff & Murderer)", function(arg1)
+  shared.Roles:Toggle("AimLock", "Aim Lock", function(arg1)
     StopAimLock()
     if arg1 then
       -- بعد تحديث كاميرا اللعبة مباشرة، ولو المشغل ما يدعمها نستخدم RenderStepped
@@ -2525,7 +2532,12 @@
       if ok then aimLockBound = true else aimLockConn = RunService.RenderStepped:Connect(AimLockStep) end
     end
   end)
-  shared.Roles:Dropdown({Name = "Aim Lock Target", Multi = false, Required = true, Options = {"Auto", "Murderer", "Sheriff"}, Default = 1, Callback = function() end}, "AimLockTarget")
+  shared.Roles:Dropdown({Name = "Aim Lock Target", Multi = false, Required = true, Options = {"Auto", "Murderer", "Sheriff", "Nearest Player", "Chosen Player"}, Default = 1, Callback = function() end}, "AimLockTarget")
+  -- قائمة اللاعبين لخيار Chosen Player (تتحدث لما يدخل أو يطلع لاعب)
+  local AimLockPlayerDropdown = shared.Roles:Dropdown({Name = "Aim Lock Player", Multi = false, Required = false, Options = {}, Default = {}, Callback = function() end}, "AimLockPlayer")
+  for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then AimLockPlayerDropdown:InsertOptions({p.Name}) end end
+  local aimLockAdded = Players.PlayerAdded:Connect(function(p) AimLockPlayerDropdown:InsertOptions({p.Name}) end)
+  local aimLockRemoving = Players.PlayerRemoving:Connect(function(p) AimLockPlayerDropdown:RemoveOptions({p.Name}) end)
   shared.Roles:Dropdown({Name = "Aim Lock Part", Multi = false, Required = true, Options = {"Head", "Body"}, Default = 1, Callback = function() end}, "AimLockPart")
   shared.Roles:Slider("AimLockSmooth", "Aim Lock Smoothness", 1, 10, 3, "Percent", function() end)
 
@@ -2741,6 +2753,8 @@
     if tradeConn then tradeConn:Disconnect() end
     if res12 then res12:Disconnect() end
     if res13 then res13:Disconnect() end
+    if aimLockAdded then aimLockAdded:Disconnect() end
+    if aimLockRemoving then aimLockRemoving:Disconnect() end
     shared.speed = nil
   end)
 
