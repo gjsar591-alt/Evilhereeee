@@ -2092,6 +2092,7 @@
     -- 1) من أرقام اللعبة نفسها
     for _, bag in pairs(bagCounts) do
       if bag.max and bag.current >= bag.max then return true end
+      if bag.current >= 50 then return true end -- 50 = أكبر شنطة
       -- بدون حد أقصى معروف: وصلنا 40+ وما زاد العدد من 10 ثواني والفارم شغال = ممتلئة
       if not bag.max and bag.current >= 40 and os.clock() - bag.lastGain > 10 and Options.AutoFarm and Options.AutoFarm:GetValue() then return true end
     end
@@ -2361,21 +2362,84 @@
     if not arg1 then SurfaceFromUnderground() end
   end)
   shared.Main:Slider("FarmUnderDepth", "Underground Depth", 3, 6, 4, "Percent", function() end)
+  -- ==========================================================================
+  -- أوامر الشنطة الممتلئة: تشتغل أول ما توصل الشنطة 50 أو تصير FULL، حسب دورك في الجولة
+  -- ==========================================================================
+  local function HasTool(player, toolName)
+    local backpack = player:FindFirstChild("Backpack")
+    return (backpack and backpack:FindFirstChild(toolName)) or (player.Character and player.Character:FindFirstChild(toolName))
+  end
+
+  -- يطلق على لاعب. الطلقة تطلع من عند الهدف نفسه فتصيب حتى لو بينكم جدار
+  local function ShootAtPlayer(target)
+    local gun = HasTool(LocalPlayer, "Gun")
+    local tChar = target and target.Character
+    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+    local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not (gun and tRoot and tHum and myRoot) then return false end
+    local predictedCF = CFrame.new(tRoot.Position + (tRoot.AssemblyLinearVelocity or Vector3.zero) * Vector3.new(0, 0.5, 0) * 0.18666666666666665 + (tHum.MoveDirection or Vector3.zero) * 2.8)
+    local att = tRoot:FindFirstChild("RootAttachment")
+    local originCF = att and (att.WorldCFrame * CFrame.new(0, 2, 0)) or tRoot.CFrame
+    local handle = gun:FindFirstChild("Handle")
+    local reload = handle and handle:FindFirstChild("Reload")
+    if reload and reload.Playing then return false end
+    local equipped = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
+    local shoot = equipped and equipped:FindFirstChild("Shoot")
+    if not shoot then return false end
+    shoot:FireServer(originCF, predictedCF)
+    return true
+  end
+
+  -- أقرب لاعب حي يحقق الشرط
+  local function NearestPlayerWhere(condition)
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil end
+    local best, bestDist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+      local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+      local hum = tRoot and p.Character:FindFirstChildOfClass("Humanoid")
+      if tRoot and hum and hum.Health > 0 and IsPlayerAlive(p, roles) and condition(p) then
+        local dist = (tRoot.Position - myRoot.Position).Magnitude
+        if dist < bestDist then bestDist = dist best = p end
+      end
+    end
+    return best
+  end
+
+  -- يضرب بالسكين كل لاعب حي يحقق الشرط
+  local function StabPlayersWhere(condition)
+    EquipTool("Knife")
+    local knife = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife")
+    local touched = knife and knife:FindFirstChild("Events") and knife.Events:FindFirstChild("HandleTouched")
+    if not touched then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+      local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+      if tRoot and IsPlayerAlive(p, roles) and condition(p) then touched:FireServer(tRoot) end
+    end
+  end
+
+  -- القاتل: يقتل كل اللي بالجولة
   shared.Main:Toggle("KillAllFullBag", "Kill Everyone When Bag Is Full", function(arg1)
     if arg1 then
-      repeat task.wait()
-        if v14 and v14 == LocalPlayer.Name and IsBagFull() then KillAll() end
+      repeat task.wait(0.2)
+        pcall(function()
+          if v14 == LocalPlayer.Name and HasTool(LocalPlayer, "Knife") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
+            StabPlayersWhere(function() return true end)
+          end
+        end)
       until not Options.KillAllFullBag:GetValue()
     end
   end)
 
+  -- الشريف (أو أي أحد معه المسدس): يقتل القاتل
   shared.Main:Toggle("ShootFullBag", "Shoot Murderer When Bag Is Full", function(arg1)
     if arg1 then
-      repeat task.wait()
+      repeat task.wait(0.1)
         pcall(function()
-          local hasGun = LocalPlayer.Backpack:FindFirstChild("Gun") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun"))
-          if hasGun and v14 and v14 ~= LocalPlayer.Name and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
-            EquipTool("Gun") ShootMurderer()
+          if v14 and v14 ~= LocalPlayer.Name and HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
+            EquipTool("Gun")
+            ShootAtPlayer(Players:FindFirstChild(v14))
           end
         end)
       until not Options.ShootFullBag:GetValue()
@@ -2385,71 +2449,30 @@
   -- وضع الزومبي: الناجين معهم مسدسات والزومبي معهم سكاكين
   shared.Main:SubLabel({Text = "ZOMBIE MODE"})
 
-  local function HasTool(player, toolName)
-    local backpack = player:FindFirstChild("Backpack")
-    return (backpack and backpack:FindFirstChild(toolName)) or (player.Character and player.Character:FindFirstChild(toolName))
-  end
-  -- يطلق على لاعب محدد (نفس طريقة Shoot Murderer لكن لأي لاعب)
-  local function ShootAtPlayer(target)
-    local gun = HasTool(LocalPlayer, "Gun")
-    local tChar = target and target.Character
-    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
-    local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
-    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not (gun and tRoot and tHum and myRoot) then return end
-    local predictedCF = CFrame.new(tRoot.Position + (tRoot.AssemblyLinearVelocity or Vector3.zero) * Vector3.new(0, 0.5, 0) * 0.18666666666666665 + (tHum.MoveDirection or Vector3.zero) * 2.8)
-    local att = myRoot:FindFirstChild("GunShoulderAttachment")
-    local originCF = att and att.WorldCFrame or myRoot.CFrame
-    local handle = gun:FindFirstChild("Handle")
-    local reload = handle and handle:FindFirstChild("Reload")
-    if reload and not reload.Playing then
-      local equipped = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
-      local shoot = equipped and equipped:FindFirstChild("Shoot")
-      if shoot then shoot:FireServer(originCF, predictedCF) end
-    end
-  end
-
-  shared.Main:Toggle("ZombieShoot", "Zombies: Auto Shoot As Survivor", function(arg1)
+  -- ناجي: يقتل كل الزومبي واحد ورا الثاني (الأقرب أول)
+  shared.Main:Toggle("ZombieShoot", "Survivor: Kill Zombies When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait(0.1)
         pcall(function()
-          local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-          if not (myRoot and HasTool(LocalPlayer, "Gun") and IsPlayerAlive(LocalPlayer, roles)) then return end
-          -- أقرب زومبي (لاعب معه سكين) ظاهر قدامك
-          local best, bestDist = nil, math.huge
-          for _, p in ipairs(Players:GetPlayers()) do
-            local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-            if tRoot and HasTool(p, "Knife") and IsPlayerAlive(p, roles) and IsVisible(p) then
-              local dist = (tRoot.Position - myRoot.Position).Magnitude
-              if dist < bestDist then bestDist = dist best = p end
-            end
-          end
-          if best then EquipTool("Gun") ShootAtPlayer(best) end
+          if not (HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles)) then return end
+          local zombie = NearestPlayerWhere(function(p) return HasTool(p, "Knife") end)
+          if zombie then EquipTool("Gun") ShootAtPlayer(zombie) end
         end)
       until not Options.ZombieShoot:GetValue()
     end
   end)
 
-  shared.Main:Toggle("ZombieKillAll", "Zombies: Kill All As Zombie", function(arg1)
+  -- زومبي: يقتل كل الناجين (اللي ما معهم سكين)
+  shared.Main:Toggle("ZombieKillAll", "Zombie: Kill Survivors When Bag Is Full", function(arg1)
     if arg1 then
-      repeat task.wait(0.1)
+      repeat task.wait(0.2)
         pcall(function()
-          if not (HasTool(LocalPlayer, "Knife") and IsPlayerAlive(LocalPlayer, roles)) then return end
-          EquipTool("Knife")
-          local knife = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife")
-          if not knife then return end
-          for _, p in ipairs(Players:GetPlayers()) do
-            local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-            -- الناجين فقط: اللي ما معهم سكين
-            if tRoot and not HasTool(p, "Knife") and IsPlayerAlive(p, roles) then
-              knife.Events.HandleTouched:FireServer(tRoot)
-            end
-          end
+          if not (HasTool(LocalPlayer, "Knife") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles)) then return end
+          StabPlayersWhere(function(p) return not HasTool(p, "Knife") end)
         end)
       until not Options.ZombieKillAll:GetValue()
     end
   end)
-
 
   shared.Main:Divider()
   shared.Main:SubLabel({Text = "ROUND ASSISTS"})
