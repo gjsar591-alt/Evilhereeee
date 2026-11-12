@@ -2440,10 +2440,6 @@
       repeat task.wait(0.2)
         pcall(function()
           if v14 == LocalPlayer.Name and HasTool(LocalPlayer, "Knife") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
-            -- فوري: يطعن الكل بنفس اللحظة من مكانه بدون انتقال
-            KillAll()
-            task.wait(0.4)
-            -- احتياط: اللي ما مات (السيرفر رفض الطعنة البعيدة) ينتقل له ويطعنه
             StabPlayersWhere(function() return true end)
           end
         end)
@@ -2487,8 +2483,7 @@
     return fired
   end
 
-  -- الشريف (أو أي أحد معه المسدس): يطلق على القاتل من مكانه من ورا الجدار (الطلقة تطلع من عند القاتل نفسه)
-  local wallShots = 0
+  -- الشريف (أو أي أحد معه المسدس): ينتقل للقاتل، يطلق عليه ويقتله، ويرجع
   shared.Main:Toggle("ShootFullBag", "Shoot Murderer When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait(0.1)
@@ -2496,16 +2491,8 @@
           if v14 and v14 ~= LocalPlayer.Name and HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
             local murderer = Players:FindFirstChild(v14)
             if murderer and IsPlayerAlive(murderer, roles) then
-              EquipTool("Gun")
-              -- احتياط: لو 3 طلقات من ورا الجدار ما قتلته، ينتقل له ويطلق من قريب
-              local fired
-              if wallShots < 3 then fired = ShootAtPlayer(murderer) else fired = TeleportShoot(murderer) end
-              if fired then wallShots = wallShots + 1 task.wait(0.4) end
-            else
-              wallShots = 0
+              if TeleportShoot(murderer) then task.wait(0.4) end
             end
-          else
-            wallShots = 0
           end
         end)
       until not Options.ShootFullBag:GetValue()
