@@ -2628,9 +2628,18 @@
     return boards
   end
 
+  -- التصويت لسا شغال لهذي اللوحة؟ (اللوحة موجودة وظاهرة ومكانها ما تغيّر)
   local function IsBoardAlive(board)
     local ok, alive = pcall(function()
-      return board.votesLabel.Parent ~= nil and (board.votesLabel:IsDescendantOf(workspace) or board.votesLabel:IsDescendantOf(LocalPlayer.PlayerGui)) and IsVotesText(board.votesLabel.Text)
+      local label = board.votesLabel
+      if label.Parent == nil or not IsVotesText(label.Text) then return false end
+      if not (label:IsDescendantOf(workspace) or label:IsDescendantOf(LocalPlayer.PlayerGui)) then return false end
+      if label.Visible == false or board.gui.Enabled == false then return false end
+      local holder = board.gui.Adornee or board.gui.Parent
+      if not holder or not holder:IsDescendantOf(workspace) then return false end
+      local position = GetHolderPosition(holder)
+      if position and (position - board.position).Magnitude > 6 then return false end
+      return true
     end)
     return ok and alive
   end
@@ -2707,7 +2716,7 @@
       local hum = char and char:FindFirstChildOfClass("Humanoid")
       local root = char and char:FindFirstChild("HumanoidRootPart")
       if root and hum and hum.Health > 0 then return root end
-      task.wait(0.05)
+      task.wait()
     until os.clock() - started > timeout
     return nil
   end
@@ -2718,7 +2727,7 @@
     if not hum then return end
     hum.Health = 0
     local started = os.clock()
-    repeat task.wait(0.05) until (LocalPlayer.Character and LocalPlayer.Character ~= oldChar and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) or os.clock() - started > 12
+    repeat task.wait() until (LocalPlayer.Character and LocalPlayer.Character ~= oldChar and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) or os.clock() - started > 12
   end
 
   -- ارتفاع وسط الشخصية عن الأرض وهي واقفة (يختلف بين R6 و R15)
@@ -2739,12 +2748,11 @@
       if limb then table.insert(parts, limb) end
     end
     for _, limb in ipairs(parts) do firetouchinterest(trigger.part, limb, 0) end
-    task.wait(0.05)
+    task.wait()
     for _, limb in ipairs(parts) do firetouchinterest(trigger.part, limb, 1) end
   end
 
-  local function CastOneVote(searchRoot, board, root)
-    local spot = FindVoteSpot(searchRoot, board)
+  local function CastOneVote(spot, root)
     local trigger = spot.trigger
     if trigger and trigger.kind == "click" and fireclickdetector then
       fireclickdetector(trigger.object)
@@ -2756,7 +2764,6 @@
     root.AssemblyLinearVelocity = Vector3.zero
     root.CFrame = CFrame.new(spot.stand)
     TouchVotePad(trigger, root)
-    return spot
   end
 
   -- يصوّت للماب عدد مرات: تصويت -> ريسيت -> تصويت ...
@@ -2768,44 +2775,54 @@
     MapVote.Done = 0
     MapVote.Total = total
     local reason = nil
-    local startVotes = ParseVotes(board.votesLabel.Text)
     pcall(function()
       local searchRoot = GetLobbyRoot() or workspace
-      for i = 1, total do
+      local spot = nil      -- مكان التصويت ينحسب مرة وحدة وينعاد استخدامه (أسرع)
+      local misses = 0      -- كم مرة ورا بعض ما انحسب الصوت
+      while MapVote.Done < total do
         if MapVote.StopRequested or shared.VertexLoaded ~= true then reason = "Stopped" break end
         if not IsBoardAlive(board) then reason = "Vote ended" break end
-        MapVote.Status = "Voting " .. i .. "/" .. total
+        MapVote.Status = "Voting " .. (MapVote.Done + 1) .. "/" .. total
         local root = WaitForRoot(10)
         if not root then reason = "No character" break end
+        if not spot or (spot.trigger and spot.trigger.part.Parent == nil) then spot = FindVoteSpot(searchRoot, board) end
         local before = ParseVotes(board.votesLabel.Text)
-        local spot = CastOneVote(searchRoot, board, root)
-        -- نبقى واقفين في مكان التصويت لين ينحسب الصوت
-        local started = os.clock()
-        local lastTouch = os.clock()
+        CastOneVote(spot, root)
+        -- ننتظر لين ينحسب الصوت (نبقى في مكان التصويت)
+        local started, lastTouch, counted = os.clock(), os.clock(), false
         repeat
-          task.wait(0.05)
+          task.wait()
+          if ParseVotes(board.votesLabel.Text) > before then counted = true break end
+          if not IsBoardAlive(board) then break end
           pcall(function()
             if not root.Parent then return end
-            -- نترك الشخصية واقفة طبيعي على الأرض، ونرجّعها بس لو انزاحت عن المكان
             if FlatDistance(root.Position, spot.stand) > 3 or math.abs(root.Position.Y - spot.stand.Y) > 6 then
               root.AssemblyLinearVelocity = Vector3.zero
               root.CFrame = CFrame.new(spot.stand)
             end
-            if os.clock() - lastTouch > 0.3 then lastTouch = os.clock() TouchVotePad(spot.trigger, root) end
+            if os.clock() - lastTouch > 0.2 then lastTouch = os.clock() TouchVotePad(spot.trigger, root) end
           end)
-        until ParseVotes(board.votesLabel.Text) > before or os.clock() - started > 1.5 or MapVote.StopRequested
-        MapVote.Done = i
-        if i < total and not MapVote.StopRequested then
-          MapVote.Status = "Respawning " .. i .. "/" .. total
-          ResetCharacterAndWait()
+        until os.clock() - started > 0.9 or MapVote.StopRequested
+        if counted then
+          misses = 0
+          MapVote.Done = MapVote.Done + 1
+          if MapVote.Done < total and not MapVote.StopRequested then
+            MapVote.Status = "Respawning " .. MapVote.Done .. "/" .. total
+            ResetCharacterAndWait()
+          end
+        else
+          -- الصوت ما انحسب: ما نسوي ريسيت، نعيد المحاولة بنفس الشخصية. ثلاث مرات ورا بعض = التصويت خلص
+          misses = misses + 1
+          if misses >= 3 then reason = (MapVote.Done > 0) and "Vote ended" or "No votes counted - press Scan Map Vote" break end
         end
       end
     end)
     if MapVote.StopRequested and not reason then reason = "Stopped" end
-    MapVote.Status = (reason and (reason .. "  +" .. MapVote.Done)) or ("Done  +" .. MapVote.Done)
-    local counted = 0
-    pcall(function() counted = ParseVotes(board.votesLabel.Text) - startVotes end)
-    if MapVote.Done > 0 and counted <= 0 and not reason then MapVote.Status = "No votes counted - press Scan Map Vote" end
+    if reason and string.find(reason, "No votes counted", 1, true) then
+      MapVote.Status = reason
+    else
+      MapVote.Status = (reason and (reason .. "  +" .. MapVote.Done)) or ("Done  +" .. MapVote.Done)
+    end
     MapVote.Running = false
   end
 
