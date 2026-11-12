@@ -2597,10 +2597,22 @@
   shared.Main:SubLabel({Text = "ZOMBIE MODE"})
 
   -- ناجي: يسوي فلنق لكل الزومبي (اللي معهم سكين) واحد ورا الثاني، ويعيد على اللي باقي حي
+  -- مود الزومبي فقط: بالجولة العادية فيه سكين وحدة ومسدس واحد، فلو غيرك معه مسدس أو فيه أكثر من سكين فهو مود زومبي
+  local function IsZombieRound()
+    local knives = 0
+    for _, p in ipairs(Players:GetPlayers()) do
+      if p ~= LocalPlayer and HasTool(p, "Gun") then return true end
+      if HasTool(p, "Knife") then knives = knives + 1 end
+    end
+    return knives >= 2
+  end
+
   shared.Main:Toggle("ZombieShoot", "Survivor: Kill Zombies When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait(0.3)
         pcall(function()
+          -- بدون هالشرط كان يسوي فلنق للقاتل بالجولة العادية لما تكون شريف
+          if not IsZombieRound() then return end
           for _, p in ipairs(Players:GetPlayers()) do
             if not Options.ZombieShoot:GetValue() then return end
             if not (HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles)) then return end
