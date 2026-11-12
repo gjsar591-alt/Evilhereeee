@@ -2434,13 +2434,55 @@
     return stabbed
   end
 
-  -- القاتل: يقتل كل اللي بالجولة
+  local function AliveOthers()
+    local list = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+      local hum = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+      if hum and hum.Health > 0 and p.Character:FindFirstChild("HumanoidRootPart") and IsPlayerAlive(p, roles) then table.insert(list, p) end
+    end
+    return list
+  end
+
+  -- يرمي السكين على كل لاعب من بعيد بدون انتقال: الرمية تطلع من جنب الهدف نفسه (نفس حيلة المسدس)
+  -- يرجّع nil لو ما لقى أمر الرمي
+  local function ThrowKnifeAtAll()
+    EquipTool("Knife")
+    task.wait(0.1)
+    local knife = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife")
+    local throw
+    for _, d in ipairs(knife and knife:GetDescendants() or {}) do
+      if d:IsA("RemoteEvent") and string.find(string.lower(d.Name), "throw", 1, true) then throw = d break end
+    end
+    if not throw then return nil end
+    for _, p in ipairs(AliveOthers()) do
+      local tRoot = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+      if tRoot then
+        local pos = tRoot.Position
+        local origin = CFrame.lookAt((tRoot.CFrame * CFrame.new(0, 1, 3)).Position, pos)
+        -- shortcut: شكل الأرقام مخمَّن (KnifeThrown = CFrame,CFrame / القديم Throw = CFrame,Vector3) وما انجرّب باللعبة، عدّله لو الرمية ما تصيب
+        throw:FireServer(origin, throw.Name == "KnifeThrown" and CFrame.new(pos) or pos)
+        task.wait(0.8) -- مهلة رجوع السكين قبل الرمية الجاية
+      end
+    end
+    return true
+  end
+
+  -- القاتل: يقتل كل اللي بالجولة من بعيد برمي السكين، ولو الرمي ما قتل أحد يرجع للانتقال والطعن
+  local throwFailed = false
   shared.Main:Toggle("KillAllFullBag", "Kill Everyone When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait(0.2)
         pcall(function()
           if v14 == LocalPlayer.Name and HasTool(LocalPlayer, "Knife") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
-            StabPlayersWhere(function() return true end)
+            local before = #AliveOthers()
+            if before == 0 then return end
+            if not throwFailed then
+              local ok = ThrowKnifeAtAll()
+              task.wait(1)
+              if not ok or #AliveOthers() >= before then throwFailed = true end
+            else
+              StabPlayersWhere(function() return true end)
+            end
           end
         end)
       until not Options.KillAllFullBag:GetValue()
