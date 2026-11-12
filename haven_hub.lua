@@ -2253,6 +2253,96 @@
   end)
 
   shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Closest Coins", "Closest + Reset", "Random Coins"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
+  shared.Main:Toggle("KillAllFullBag", "Kill Everyone When Bag Is Full", function(arg1)
+    if arg1 then
+      repeat task.wait()
+        if v14 and v14 == LocalPlayer.Name and IsBagFull() then KillAll() end
+      until not Options.KillAllFullBag:GetValue()
+    end
+  end)
+
+  shared.Main:Toggle("ShootFullBag", "Shoot Murderer When Bag Is Full", function(arg1)
+    if arg1 then
+      repeat task.wait()
+        pcall(function()
+          local hasGun = LocalPlayer.Backpack:FindFirstChild("Gun") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun"))
+          if hasGun and v14 and v14 ~= LocalPlayer.Name and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
+            EquipTool("Gun") ShootMurderer()
+          end
+        end)
+      until not Options.ShootFullBag:GetValue()
+    end
+  end)
+
+  -- وضع الزومبي: الناجين معهم مسدسات والزومبي معهم سكاكين
+  shared.Main:SubLabel({Text = "ZOMBIE MODE"})
+
+  local function HasTool(player, toolName)
+    local backpack = player:FindFirstChild("Backpack")
+    return (backpack and backpack:FindFirstChild(toolName)) or (player.Character and player.Character:FindFirstChild(toolName))
+  end
+  -- يطلق على لاعب محدد (نفس طريقة Shoot Murderer لكن لأي لاعب)
+  local function ShootAtPlayer(target)
+    local gun = HasTool(LocalPlayer, "Gun")
+    local tChar = target and target.Character
+    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+    local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not (gun and tRoot and tHum and myRoot) then return end
+    local predictedCF = CFrame.new(tRoot.Position + (tRoot.AssemblyLinearVelocity or Vector3.zero) * Vector3.new(0, 0.5, 0) * 0.18666666666666665 + (tHum.MoveDirection or Vector3.zero) * 2.8)
+    local att = myRoot:FindFirstChild("GunShoulderAttachment")
+    local originCF = att and att.WorldCFrame or myRoot.CFrame
+    local handle = gun:FindFirstChild("Handle")
+    local reload = handle and handle:FindFirstChild("Reload")
+    if reload and not reload.Playing then
+      local equipped = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
+      local shoot = equipped and equipped:FindFirstChild("Shoot")
+      if shoot then shoot:FireServer(originCF, predictedCF) end
+    end
+  end
+
+  shared.Main:Toggle("ZombieShoot", "Zombies: Auto Shoot As Survivor", function(arg1)
+    if arg1 then
+      repeat task.wait(0.1)
+        pcall(function()
+          local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+          if not (myRoot and HasTool(LocalPlayer, "Gun") and IsPlayerAlive(LocalPlayer, roles)) then return end
+          -- أقرب زومبي (لاعب معه سكين) ظاهر قدامك
+          local best, bestDist = nil, math.huge
+          for _, p in ipairs(Players:GetPlayers()) do
+            local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+            if tRoot and HasTool(p, "Knife") and IsPlayerAlive(p, roles) and IsVisible(p) then
+              local dist = (tRoot.Position - myRoot.Position).Magnitude
+              if dist < bestDist then bestDist = dist best = p end
+            end
+          end
+          if best then EquipTool("Gun") ShootAtPlayer(best) end
+        end)
+      until not Options.ZombieShoot:GetValue()
+    end
+  end)
+
+  shared.Main:Toggle("ZombieKillAll", "Zombies: Kill All As Zombie", function(arg1)
+    if arg1 then
+      repeat task.wait(0.1)
+        pcall(function()
+          if not (HasTool(LocalPlayer, "Knife") and IsPlayerAlive(LocalPlayer, roles)) then return end
+          EquipTool("Knife")
+          local knife = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife")
+          if not knife then return end
+          for _, p in ipairs(Players:GetPlayers()) do
+            local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+            -- الناجين فقط: اللي ما معهم سكين
+            if tRoot and not HasTool(p, "Knife") and IsPlayerAlive(p, roles) then
+              knife.Events.HandleTouched:FireServer(tRoot)
+            end
+          end
+        end)
+      until not Options.ZombieKillAll:GetValue()
+    end
+  end)
+
+
   shared.Main:Divider()
   shared.Main:SubLabel({Text = "ROUND ASSISTS"})
 
@@ -2545,21 +2635,22 @@
         end
       end
     end
-    local stand
+    -- floor = سطح الأرض في مكان التصويت (الشخصية توقف عليه بالضبط)
+    local floor
     if best then
-      stand = best.part.Position + Vector3.new(0, best.part.Size.Y / 2 + 3, 0)
+      floor = best.part.Position + Vector3.new(0, best.part.Size.Y / 2, 0)
     else
-      -- ما لقينا منصة: نوقف على الأرض قدام اللوحة مباشرة
-      stand = point
+      -- ما لقينا منصة: الأرض اللي قدام اللوحة مباشرة
+      floor = Vector3.new(point.X, point.Y - 3, point.Z)
       pcall(function()
         local params = RaycastParams.new()
         params.FilterType = Enum.RaycastFilterType.Exclude
         params.FilterDescendantsInstances = {LocalPlayer.Character}
         local hit = workspace:Raycast(point + Vector3.new(0, 4, 0), Vector3.new(0, -40, 0), params)
-        if hit then stand = hit.Position + Vector3.new(0, 3, 0) end
+        if hit then floor = hit.Position end
       end)
     end
-    return {stand = stand, trigger = best}
+    return {floor = floor, trigger = best}
   end
 
   local function WaitForRoot(timeout)
@@ -2583,6 +2674,28 @@
     repeat task.wait(0.05) until (LocalPlayer.Character and LocalPlayer.Character ~= oldChar and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) or os.clock() - started > 12
   end
 
+  -- ارتفاع وسط الشخصية عن الأرض وهي واقفة (يختلف بين R6 و R15)
+  local function GetStandHeight(root)
+    local height = 3
+    pcall(function()
+      local hum = root.Parent:FindFirstChildOfClass("Humanoid")
+      if hum and hum.RigType == Enum.HumanoidRigType.R15 then height = hum.HipHeight + root.Size.Y / 2 end
+    end)
+    return height
+  end
+
+  local function TouchVotePad(trigger, root)
+    if not (trigger and trigger.kind == "touch" and firetouchinterest) then return end
+    local parts = {root}
+    for _, name in ipairs({"LeftFoot", "RightFoot", "Left Leg", "Right Leg"}) do
+      local limb = root.Parent and root.Parent:FindFirstChild(name)
+      if limb then table.insert(parts, limb) end
+    end
+    for _, limb in ipairs(parts) do firetouchinterest(trigger.part, limb, 0) end
+    task.wait(0.05)
+    for _, limb in ipairs(parts) do firetouchinterest(trigger.part, limb, 1) end
+  end
+
   local function CastOneVote(searchRoot, board, root)
     local spot = FindVoteSpot(searchRoot, board)
     local trigger = spot.trigger
@@ -2591,11 +2704,11 @@
     elseif trigger and trigger.kind == "prompt" and fireproximityprompt then
       fireproximityprompt(trigger.object)
     end
+    -- نوقف على أرض مكان التصويت بالضبط (بدون ما نرتفع عنها)
+    spot.stand = spot.floor + Vector3.new(0, GetStandHeight(root), 0)
     root.AssemblyLinearVelocity = Vector3.zero
     root.CFrame = CFrame.new(spot.stand)
-    if trigger and trigger.kind == "touch" and firetouchinterest then
-      firetouchinterest(trigger.part, root, 0) task.wait(0.05) firetouchinterest(trigger.part, root, 1)
-    end
+    TouchVotePad(trigger, root)
     return spot
   end
 
@@ -2621,9 +2734,18 @@
         local spot = CastOneVote(searchRoot, board, root)
         -- نبقى واقفين في مكان التصويت لين ينحسب الصوت
         local started = os.clock()
+        local lastTouch = os.clock()
         repeat
           task.wait(0.05)
-          pcall(function() if root.Parent then root.AssemblyLinearVelocity = Vector3.zero root.CFrame = CFrame.new(spot.stand) end end)
+          pcall(function()
+            if not root.Parent then return end
+            -- نترك الشخصية واقفة طبيعي على الأرض، ونرجّعها بس لو انزاحت عن المكان
+            if FlatDistance(root.Position, spot.stand) > 3 or math.abs(root.Position.Y - spot.stand.Y) > 6 then
+              root.AssemblyLinearVelocity = Vector3.zero
+              root.CFrame = CFrame.new(spot.stand)
+            end
+            if os.clock() - lastTouch > 0.3 then lastTouch = os.clock() TouchVotePad(spot.trigger, root) end
+          end)
         until ParseVotes(board.votesLabel.Text) > before or os.clock() - started > 1.5 or MapVote.StopRequested
         MapVote.Done = i
         if i < total and not MapVote.StopRequested then
@@ -2979,14 +3101,6 @@
     end
   end)
 
-  shared.Roles:Toggle("KillAllFullBag", "Kill Everyone When Bag Is Full", function(arg1)
-    if arg1 then
-      repeat task.wait()
-        if v14 and v14 == LocalPlayer.Name and IsBagFull() then KillAll() end
-      until not Options.KillAllFullBag:GetValue()
-    end
-  end)
-
   -- Knife Throw Auto Aim: لما ترمي السكين بنفسك، يوجّه الرمية لأقرب لاعب
   local knifeAimActive, knifeAimOldNamecall = false, nil
   local function GetKnifeAimPosition()
@@ -3114,89 +3228,6 @@
   end)
 
   shared.Roles:Keybind("ShootBind", "Shoot Murderer Hotkey", function() pcall(function() EquipTool("Gun") ShootMurderer() end) end)
-  shared.Roles:Toggle("ShootFullBag", "Shoot Murderer When Bag Is Full", function(arg1)
-    if arg1 then
-      repeat task.wait()
-        pcall(function()
-          local hasGun = LocalPlayer.Backpack:FindFirstChild("Gun") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun"))
-          if hasGun and v14 and v14 ~= LocalPlayer.Name and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
-            EquipTool("Gun") ShootMurderer()
-          end
-        end)
-      until not Options.ShootFullBag:GetValue()
-    end
-  end)
-
-  -- وضع الزومبي: الناجين معهم مسدسات والزومبي معهم سكاكين
-  shared.Roles:Divider()
-  shared.Roles:SubLabel({Text = "ZOMBIE MODE"})
-
-  local function HasTool(player, toolName)
-    local backpack = player:FindFirstChild("Backpack")
-    return (backpack and backpack:FindFirstChild(toolName)) or (player.Character and player.Character:FindFirstChild(toolName))
-  end
-  -- يطلق على لاعب محدد (نفس طريقة Shoot Murderer لكن لأي لاعب)
-  local function ShootAtPlayer(target)
-    local gun = HasTool(LocalPlayer, "Gun")
-    local tChar = target and target.Character
-    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
-    local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
-    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not (gun and tRoot and tHum and myRoot) then return end
-    local predictedCF = CFrame.new(tRoot.Position + (tRoot.AssemblyLinearVelocity or Vector3.zero) * Vector3.new(0, 0.5, 0) * 0.18666666666666665 + (tHum.MoveDirection or Vector3.zero) * 2.8)
-    local att = myRoot:FindFirstChild("GunShoulderAttachment")
-    local originCF = att and att.WorldCFrame or myRoot.CFrame
-    local handle = gun:FindFirstChild("Handle")
-    local reload = handle and handle:FindFirstChild("Reload")
-    if reload and not reload.Playing then
-      local equipped = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
-      local shoot = equipped and equipped:FindFirstChild("Shoot")
-      if shoot then shoot:FireServer(originCF, predictedCF) end
-    end
-  end
-
-  shared.Roles:Toggle("ZombieShoot", "Zombies: Auto Shoot As Survivor", function(arg1)
-    if arg1 then
-      repeat task.wait(0.1)
-        pcall(function()
-          local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-          if not (myRoot and HasTool(LocalPlayer, "Gun") and IsPlayerAlive(LocalPlayer, roles)) then return end
-          -- أقرب زومبي (لاعب معه سكين) ظاهر قدامك
-          local best, bestDist = nil, math.huge
-          for _, p in ipairs(Players:GetPlayers()) do
-            local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-            if tRoot and HasTool(p, "Knife") and IsPlayerAlive(p, roles) and IsVisible(p) then
-              local dist = (tRoot.Position - myRoot.Position).Magnitude
-              if dist < bestDist then bestDist = dist best = p end
-            end
-          end
-          if best then EquipTool("Gun") ShootAtPlayer(best) end
-        end)
-      until not Options.ZombieShoot:GetValue()
-    end
-  end)
-
-  shared.Roles:Toggle("ZombieKillAll", "Zombies: Kill All As Zombie", function(arg1)
-    if arg1 then
-      repeat task.wait(0.1)
-        pcall(function()
-          if not (HasTool(LocalPlayer, "Knife") and IsPlayerAlive(LocalPlayer, roles)) then return end
-          EquipTool("Knife")
-          local knife = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife")
-          if not knife then return end
-          for _, p in ipairs(Players:GetPlayers()) do
-            local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-            -- الناجين فقط: اللي ما معهم سكين
-            if tRoot and not HasTool(p, "Knife") and IsPlayerAlive(p, roles) then
-              knife.Events.HandleTouched:FireServer(tRoot)
-            end
-          end
-        end)
-      until not Options.ZombieKillAll:GetValue()
-    end
-  end)
-
-
   -- Aim Lock: يثبّت الكاميرا على القاتل / الشريف
   shared.Roles:Divider()
   shared.Roles:SubLabel({Text = "AIM LOCK"})
