@@ -2276,7 +2276,14 @@
       end
 
       if not IsBagFull() or not root or not hum or hum.Health <= 0 or not IsPlayerAlive(LocalPlayer, roles) then farmFullHandled = false farmStep() return end
-      -- الشنطة امتلت: نوقف الفارم في مكانه لين الجولة الجاية (دايماً، في كل أوضاع الفارم الثلاثة)
+      -- الشنطة امتلت.
+      -- وضع Closest + Reset: يسوي ريسيت للشخصية مثل ما كان. نخليه لين يرجع بشخصية جديدة ثم نكمل الفحص
+      if Options.Mode:GetValue() == "Closest + Reset" then
+        farmFullHandled = false
+        hum.Health = 0
+        return
+      end
+      -- باقي الأوضاع: نوقف الفارم في مكانه لين الجولة الجاية
       if not farmFullHandled then
         farmFullHandled = true
         v18 = nil
