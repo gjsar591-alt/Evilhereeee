@@ -2068,7 +2068,7 @@
       local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
       if not root then return end
       root.AssemblyLinearVelocity = Vector3.zero
-      root.CFrame = root.CFrame + Vector3.new(0, FARM_DEPTH + 4, 0)
+      root.CFrame = CFrame.new(root.Position + Vector3.new(0, FARM_DEPTH + 4, 0)) -- يرجع واقف
     end)
   end
 
@@ -2216,11 +2216,16 @@
       local bv = Instance.new("BodyVelocity", root)
       bv.Name = "BodyVelocity" bv.Velocity = Vector3.zero bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     end
+    -- PlatformStand يمنع الشخصية تحاول توقف نفسها وهي منسدحة
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then hum.PlatformStand = true end
   end
 
   local function DisableFloat()
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if root and root:FindFirstChild("BodyVelocity") then root.BodyVelocity:Destroy() end
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then hum.PlatformStand = false end
   end
 
 
@@ -2256,7 +2261,8 @@
     local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 40)
     if not IsBagFull() and CoinAttribute(coin, true) then
       farmIsUnderground = true
-      TweenTo(CFrame.new(pos.X, pos.Y - FARM_DEPTH, pos.Z), speed, false, false, nil, true)
+      -- منسدح على بطنه (مو واقف) وهو يتحرك تحت الأرض
+      TweenTo(CFrame.new(pos.X, pos.Y - FARM_DEPTH, pos.Z) * CFrame.Angles(math.rad(-90), 0, 0), speed, false, false, nil, true)
     end
   end
 
