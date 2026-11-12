@@ -2410,8 +2410,236 @@
     return total, copied, saved
   end
 
+  -- ==========================================================================
+  -- نظام التصويت على المابات (Auto Vote)
+  -- يتعرف على خيارات التصويت في اللوبي من النصوص المكتوبة على اللوحات، ثم يصوّت للماب المختار
+  -- ==========================================================================
+  local KnownMaps = {"Bank 2", "Bio Lab", "Factory", "Hospital 3", "Hotel", "House 2", "Mansion 2", "Mil Base", "Office 3", "Police Station", "Research Facility", "Workplace"}
+
+  local function NormalizeMapName(text)
+    return (string.gsub(string.lower(tostring(text or "")), "[^%w]", ""))
+  end
+
+  local function GetLobbyRoot()
+    for _, child in ipairs(workspace:GetChildren()) do
+      if (child:IsA("Model") or child:IsA("Folder")) and string.find(string.lower(child.Name), "lobby", 1, true) then return child end
+    end
+    return nil
+  end
+
+  local function GetWantedMap()
+    local custom = Options.VoteCustomMap and Options.VoteCustomMap:GetInput() or ""
+    if NormalizeMapName(custom) ~= "" then return custom end
+    return Options.VoteMap and Options.VoteMap:GetValue() or nil
+  end
+
+  -- موقع اللوحة اللي عليها النص
+  local function GetLabelWorldPosition(label)
+    local gui = label:FindFirstAncestorWhichIsA("SurfaceGui") or label:FindFirstAncestorWhichIsA("BillboardGui")
+    local holder = gui and (gui.Adornee or gui.Parent)
+    if not holder then return nil end
+    if holder:IsA("BasePart") then return holder.Position end
+    if holder:IsA("Model") then
+      local ok, pivot = pcall(function() return holder:GetPivot().Position end)
+      if ok then return pivot end
+    end
+    return nil
+  end
+
+  -- يرجّع خيارات التصويت الظاهرة حالياً: {name = "Hotel", position = Vector3, label = TextLabel}
+  local function DetectVoteOptions(lobby)
+    local options, seen = {}, {}
+    local labels = {}
+    local function collect(root, mustAdornLobby)
+      for _, desc in ipairs(root:GetDescendants()) do
+        if desc:IsA("TextLabel") and desc.Text ~= "" then
+          local gui = desc:FindFirstAncestorWhichIsA("SurfaceGui") or desc:FindFirstAncestorWhichIsA("BillboardGui")
+          if gui then
+            local holder = gui.Adornee or gui.Parent
+            if not mustAdornLobby or (holder and holder:IsDescendantOf(lobby)) then table.insert(labels, desc) end
+          end
+        end
+      end
+    end
+    pcall(collect, lobby, false)
+    pcall(collect, LocalPlayer.PlayerGui, true)
+
+    local candidates = {}
+    for _, name in ipairs(KnownMaps) do table.insert(candidates, name) end
+    local custom = Options.VoteCustomMap and Options.VoteCustomMap:GetInput() or ""
+    if NormalizeMapName(custom) ~= "" then table.insert(candidates, custom) end
+
+    for _, label in ipairs(labels) do
+      local norm = NormalizeMapName(label.Text)
+      if #norm >= 3 and #norm <= 40 then
+        for _, mapName in ipairs(candidates) do
+          local mapNorm = NormalizeMapName(mapName)
+          if not seen[mapNorm] and (norm == mapNorm or (#norm <= #mapNorm + 8 and string.find(norm, mapNorm, 1, true))) then
+            local position = GetLabelWorldPosition(label)
+            if position then
+              seen[mapNorm] = true
+              table.insert(options, {name = mapName, position = position, label = label})
+            end
+          end
+        end
+      end
+    end
+    return options
+  end
+
+  -- أقرب شي ينضغط/ينداس عليه قريب من لوحة الماب
+  local function FindVoteTrigger(lobby, position)
+    local best, bestScore = nil, math.huge
+    for _, desc in ipairs(lobby:GetDescendants()) do
+      local kind, part = nil, nil
+      if desc:IsA("BasePart") and desc:FindFirstChildOfClass("TouchTransmitter") then kind, part = "touch", desc
+      elseif desc:IsA("ClickDetector") and desc.Parent and desc.Parent:IsA("BasePart") then kind, part = "click", desc.Parent
+      elseif desc:IsA("ProximityPrompt") and desc.Parent and desc.Parent:IsA("BasePart") then kind, part = "prompt", desc.Parent end
+      if kind then
+        local dist = (part.Position - position).Magnitude
+        if dist <= 90 then
+          -- نفضّل الأشياء اللي اسمها أو اسم أبوها فيه vote/pad/map
+          local names = string.lower(part.Name .. " " .. (part.Parent and part.Parent.Name or ""))
+          local score = dist
+          if string.find(names, "vote", 1, true) or string.find(names, "pad", 1, true) or string.find(names, "map", 1, true) then score = score - 40 end
+          if score < bestScore then bestScore = score best = {kind = kind, part = part, object = desc} end
+        end
+      end
+    end
+    return best
+  end
+
+  -- زر تصويت في واجهة اللاعب (لو اللعبة تستخدم واجهة بدل اللوحات)
+  local function FindVoteGuiButton(wantedNorm)
+    for _, desc in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
+      if desc:IsA("GuiButton") and desc.Visible then
+        local text = desc:IsA("TextButton") and desc.Text or ""
+        for _, child in ipairs(desc:GetDescendants()) do
+          if child:IsA("TextLabel") then text = text .. " " .. child.Text end
+        end
+        local norm = NormalizeMapName(text .. " " .. desc.Name)
+        local path = string.lower(desc:GetFullName())
+        if string.find(norm, wantedNorm, 1, true) and (string.find(path, "vote", 1, true) or string.find(path, "map", 1, true)) then return desc end
+      end
+    end
+    return nil
+  end
+
+  local function ResetCharacterAndWait()
+    local oldChar = LocalPlayer.Character
+    local hum = oldChar and oldChar:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    hum.Health = 0
+    local started = os.clock()
+    repeat task.wait(0.2) until (LocalPlayer.Character and LocalPlayer.Character ~= oldChar and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) or os.clock() - started > 12
+    task.wait(1)
+  end
+
+  local function CastVote(lobby, option)
+    local voted = false
+    pcall(function()
+      local button = FindVoteGuiButton(NormalizeMapName(option.name))
+      if button then
+        if firesignal then firesignal(button.MouseButton1Click) voted = true
+        elseif getconnections then
+          for _, conn in ipairs(getconnections(button.MouseButton1Click)) do conn:Fire() voted = true end
+        end
+      end
+    end)
+    if voted then return true, "GUI" end
+    local trigger = FindVoteTrigger(lobby, option.position)
+    if not trigger then return false, "NO PAD" end
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return false, "NO CHARACTER" end
+    if trigger.kind == "click" and fireclickdetector then
+      fireclickdetector(trigger.object)
+    elseif trigger.kind == "prompt" and fireproximityprompt then
+      fireproximityprompt(trigger.object)
+    else
+      -- نوقف على اللوحة ونلمسها
+      root.AssemblyLinearVelocity = Vector3.zero
+      root.CFrame = CFrame.new(trigger.part.Position + Vector3.new(0, trigger.part.Size.Y / 2 + 3, 0))
+      if firetouchinterest and trigger.kind == "touch" then
+        firetouchinterest(trigger.part, root, 0) task.wait(0.1) firetouchinterest(trigger.part, root, 1)
+      end
+    end
+    return true, string.upper(trigger.kind)
+  end
+
   shared.Main:Divider()
   shared.Main:SubLabel({Text = "MAP VOTE"})
+  local VoteStatusLabel
+  shared.Main:Toggle("AutoVote", "Auto Vote Map", function(arg1)
+    if not arg1 then return end
+    local handledKey, lastRoundSeen = nil, false
+    repeat
+      task.wait(0.5)
+      pcall(function()
+        local roundActive = (v14 ~= nil) or (v15 ~= nil)
+        -- لما تبدأ جولة ننسى التصويت القديم، فالتصويت الجاي يتعامل معه من جديد
+        if roundActive then
+          handledKey = nil
+          VoteStatusLabel:UpdateName("VOTE: ROUND IN PROGRESS")
+          return
+        end
+        local lobby = GetLobbyRoot()
+        if not lobby then VoteStatusLabel:UpdateName("VOTE: LOBBY NOT FOUND") return end
+        local options = DetectVoteOptions(lobby)
+        if #options == 0 then VoteStatusLabel:UpdateName("VOTE: NO MAPS SHOWN YET") return end
+        local names = {}
+        for _, option in ipairs(options) do table.insert(names, option.name) end
+        table.sort(names)
+        local key = table.concat(names, ", ")
+        if key == handledKey then return end
+
+        local wanted = GetWantedMap()
+        local wantedNorm = NormalizeMapName(wanted)
+        local match = nil
+        for _, option in ipairs(options) do
+          if NormalizeMapName(option.name) == wantedNorm then match = option end
+        end
+        if not match then
+          handledKey = key
+          VoteStatusLabel:UpdateName("MAPS: " .. key .. "  |  " .. string.upper(tostring(wanted)) .. " NOT IN VOTE")
+          return
+        end
+
+        if Options.VoteReset:GetValue() then
+          VoteStatusLabel:UpdateName("MAPS: " .. key .. "  |  RESETTING")
+          ResetCharacterAndWait()
+          -- بعد الريسيت نعيد قراءة اللوحات (ممكن تتغير أماكنها)
+          local fresh = DetectVoteOptions(lobby)
+          for _, option in ipairs(fresh) do
+            if NormalizeMapName(option.name) == wantedNorm then match = option end
+          end
+        end
+        local ok, how = CastVote(lobby, match)
+        handledKey = key
+        if ok then
+          VoteStatusLabel:UpdateName("MAPS: " .. key .. "  |  VOTED " .. string.upper(match.name) .. " (" .. how .. ")")
+        else
+          VoteStatusLabel:UpdateName("MAPS: " .. key .. "  |  COULD NOT VOTE (" .. how .. ")")
+        end
+      end)
+    until not Options.AutoVote:GetValue() or shared.VertexLoaded ~= true
+    pcall(function() VoteStatusLabel:UpdateName("VOTE: OFF") end)
+  end)
+  shared.Main:Dropdown({Name = "Vote Map", Multi = false, Required = true, Options = KnownMaps, Default = 1, Callback = function() end}, "VoteMap")
+  shared.Main:Input({Name = "Custom Map Name", Placeholder = "optional", AcceptedCharacters = "All", Callback = function() end}, "VoteCustomMap")
+  shared.Main:Toggle("VoteReset", "Reset Character Before Voting", {State = true}, function() end)
+  VoteStatusLabel = shared.Main:SubLabel({Text = "VOTE: OFF"})
+  shared.Main:Button({Name = "Show Maps In Vote Now", Callback = function()
+    local text = "Lobby not found."
+    pcall(function()
+      local lobby = GetLobbyRoot()
+      if lobby then
+        local names = {}
+        for _, option in ipairs(DetectVoteOptions(lobby)) do table.insert(names, option.name) end
+        text = (#names > 0) and table.concat(names, ", ") or "No map names found on the lobby boards right now."
+      end
+    end)
+    Window:Notify({Title = "MAPS IN VOTE", Description = text, Duration = 7})
+  end})
   shared.Main:Button({Name = "Scan Map Vote (Copy Info)", Callback = function()
     local total, copied, saved = ScanMapVote()
     local where = (copied and "Copied to clipboard. " or "") .. (saved and "Saved to HavenHub/mapvote_scan.txt." or "")
