@@ -2411,14 +2411,11 @@
   end
 
   -- ==========================================================================
-  -- نظام التصويت على المابات (Auto Vote)
-  -- يتعرف على خيارات التصويت في اللوبي من النصوص المكتوبة على اللوحات، ثم يصوّت للماب المختار
+  -- لوحة التصويت على المابات (Map Vote Panel)
+  -- تطلع فوق الشاشة أول ما يبدأ التصويت، فيها المابات المعروضة وعدد أصواتها.
+  -- تضغط على ماب: يوقف على منصته ويصوّت، ثم يسوي ريسيت ويعيد، لين يكمل العدد المطلوب.
   -- ==========================================================================
-  local KnownMaps = {"Bank 2", "Bio Lab", "Factory", "Hospital 3", "Hotel", "House 2", "Mansion 2", "Mil Base", "Office 3", "Police Station", "Research Facility", "Workplace"}
-
-  local function NormalizeMapName(text)
-    return (string.gsub(string.lower(tostring(text or "")), "[^%w]", ""))
-  end
+  local MapVote = {Running = false, StopRequested = false, Count = 10, Boards = {}, Status = "Waiting", ActiveName = nil, Done = 0, Total = 0, DismissedKey = nil}
 
   local function GetLobbyRoot()
     for _, child in ipairs(workspace:GetChildren()) do
@@ -2427,81 +2424,95 @@
     return nil
   end
 
-  local function GetWantedMap()
-    local custom = Options.VoteCustomMap and Options.VoteCustomMap:GetInput() or ""
-    if NormalizeMapName(custom) ~= "" then return custom end
-    return Options.VoteMap and Options.VoteMap:GetValue() or nil
+  local function ParseVotes(text)
+    return tonumber(string.match(tostring(text or ""), "(%d+)")) or 0
   end
 
-  -- موقع اللوحة اللي عليها النص
-  local function GetLabelWorldPosition(label)
-    local gui = label:FindFirstAncestorWhichIsA("SurfaceGui") or label:FindFirstAncestorWhichIsA("BillboardGui")
-    local holder = gui and (gui.Adornee or gui.Parent)
+  -- نص مثل "Votes: 3"
+  local function IsVotesText(text)
+    return string.match(string.lower(tostring(text or "")), "^%s*votes?%s*:?%s*%d+%s*$") ~= nil
+  end
+
+  local function GetHolderPosition(holder)
     if not holder then return nil end
     if holder:IsA("BasePart") then return holder.Position end
     if holder:IsA("Model") then
-      local ok, pivot = pcall(function() return holder:GetPivot().Position end)
-      if ok then return pivot end
+      local ok, position = pcall(function() return holder:GetPivot().Position end)
+      if ok then return position end
     end
     return nil
   end
 
-  -- يرجّع خيارات التصويت الظاهرة حالياً: {name = "Hotel", position = Vector3, label = TextLabel}
-  local function DetectVoteOptions(lobby)
-    local options, seen = {}, {}
-    local labels = {}
-    local function collect(root, mustAdornLobby)
-      for _, desc in ipairs(root:GetDescendants()) do
-        if desc:IsA("TextLabel") and desc.Text ~= "" then
-          local gui = desc:FindFirstAncestorWhichIsA("SurfaceGui") or desc:FindFirstAncestorWhichIsA("BillboardGui")
-          if gui then
-            local holder = gui.Adornee or gui.Parent
-            if not mustAdornLobby or (holder and holder:IsDescendantOf(lobby)) then table.insert(labels, desc) end
-          end
-        end
+  -- صورة الماب من لوحته (لو موجودة)
+  local function FindBoardImage(gui, holder)
+    local image = nil
+    pcall(function()
+      for _, desc in ipairs(gui:GetDescendants()) do
+        if (desc:IsA("ImageLabel") or desc:IsA("ImageButton")) and desc.Image ~= "" then image = desc.Image return end
       end
-    end
-    pcall(collect, lobby, false)
-    pcall(collect, LocalPlayer.PlayerGui, true)
-
-    local candidates = {}
-    for _, name in ipairs(KnownMaps) do table.insert(candidates, name) end
-    local custom = Options.VoteCustomMap and Options.VoteCustomMap:GetInput() or ""
-    if NormalizeMapName(custom) ~= "" then table.insert(candidates, custom) end
-
-    for _, label in ipairs(labels) do
-      local norm = NormalizeMapName(label.Text)
-      if #norm >= 3 and #norm <= 40 then
-        for _, mapName in ipairs(candidates) do
-          local mapNorm = NormalizeMapName(mapName)
-          if not seen[mapNorm] and (norm == mapNorm or (#norm <= #mapNorm + 8 and string.find(norm, mapNorm, 1, true))) then
-            local position = GetLabelWorldPosition(label)
-            if position then
-              seen[mapNorm] = true
-              table.insert(options, {name = mapName, position = position, label = label})
-            end
-          end
-        end
+      local model = holder and holder.Parent
+      if not model or model == workspace then return end
+      local descendants = model:GetDescendants()
+      if #descendants > 80 then return end
+      for _, desc in ipairs(descendants) do
+        if (desc:IsA("ImageLabel") or desc:IsA("ImageButton")) and desc.Image ~= "" then image = desc.Image return end
+        if (desc:IsA("Decal") or desc:IsA("Texture")) and desc.Texture ~= "" then image = desc.Texture return end
       end
-    end
-    return options
+    end)
+    return image
   end
 
-  -- أقرب شي ينضغط/ينداس عليه قريب من لوحة الماب
-  local function FindVoteTrigger(lobby, position)
+  -- يدوّر على لوحات التصويت: أي لوحة فيها نص "Votes: N" ومعه اسم الماب
+  local function DetectVoteBoards(root)
+    local boards, seen = {}, {}
+    local function consider(label, mustBeInWorld)
+      if not (label:IsA("TextLabel") and IsVotesText(label.Text)) then return end
+      local gui = label:FindFirstAncestorWhichIsA("SurfaceGui") or label:FindFirstAncestorWhichIsA("BillboardGui")
+      if not gui or gui.Enabled == false then return end
+      local holder = gui.Adornee or gui.Parent
+      if mustBeInWorld and not (holder and holder:IsDescendantOf(workspace)) then return end
+      local position = GetHolderPosition(holder)
+      if not position then return end
+      local name = nil
+      for _, other in ipairs(gui:GetDescendants()) do
+        if other ~= label and other:IsA("TextLabel") and not IsVotesText(other.Text) and string.match(other.Text, "%a") then
+          name = name or other.Text
+        end
+      end
+      if not name then return end
+      name = string.gsub(string.gsub(name, "^%s+", ""), "%s+$", "")
+      if name == "" or seen[name] then return end
+      seen[name] = true
+      table.insert(boards, {name = name, votesLabel = label, gui = gui, holder = holder, position = position, image = FindBoardImage(gui, holder)})
+    end
+    pcall(function() for _, desc in ipairs(root:GetDescendants()) do consider(desc, false) end end)
+    pcall(function() for _, desc in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do consider(desc, true) end end)
+    table.sort(boards, function(a, b) return a.name < b.name end)
+    return boards
+  end
+
+  local function IsBoardAlive(board)
+    local ok, alive = pcall(function()
+      return board.votesLabel.Parent ~= nil and (board.votesLabel:IsDescendantOf(workspace) or board.votesLabel:IsDescendantOf(LocalPlayer.PlayerGui)) and IsVotesText(board.votesLabel.Text)
+    end)
+    return ok and alive
+  end
+
+  -- أقرب منصة تنداس (أو شي ينضغط) عند لوحة الماب
+  local function FindVoteTrigger(root, board)
     local best, bestScore = nil, math.huge
-    for _, desc in ipairs(lobby:GetDescendants()) do
+    for _, desc in ipairs(root:GetDescendants()) do
       local kind, part = nil, nil
       if desc:IsA("BasePart") and desc:FindFirstChildOfClass("TouchTransmitter") then kind, part = "touch", desc
       elseif desc:IsA("ClickDetector") and desc.Parent and desc.Parent:IsA("BasePart") then kind, part = "click", desc.Parent
       elseif desc:IsA("ProximityPrompt") and desc.Parent and desc.Parent:IsA("BasePart") then kind, part = "prompt", desc.Parent end
-      if kind then
-        local dist = (part.Position - position).Magnitude
-        if dist <= 90 then
-          -- نفضّل الأشياء اللي اسمها أو اسم أبوها فيه vote/pad/map
+      if kind and not part:IsA("SpawnLocation") then
+        local dist = (part.Position - board.position).Magnitude
+        if dist <= 35 then
           local names = string.lower(part.Name .. " " .. (part.Parent and part.Parent.Name or ""))
           local score = dist
-          if string.find(names, "vote", 1, true) or string.find(names, "pad", 1, true) or string.find(names, "map", 1, true) then score = score - 40 end
+          if string.find(names, "vote", 1, true) or string.find(names, "pad", 1, true) or string.find(names, "map", 1, true) then score = score - 15 end
+          if board.holder and part.Parent == board.holder.Parent then score = score - 15 end
           if score < bestScore then bestScore = score best = {kind = kind, part = part, object = desc} end
         end
       end
@@ -2509,19 +2520,15 @@
     return best
   end
 
-  -- زر تصويت في واجهة اللاعب (لو اللعبة تستخدم واجهة بدل اللوحات)
-  local function FindVoteGuiButton(wantedNorm)
-    for _, desc in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
-      if desc:IsA("GuiButton") and desc.Visible then
-        local text = desc:IsA("TextButton") and desc.Text or ""
-        for _, child in ipairs(desc:GetDescendants()) do
-          if child:IsA("TextLabel") then text = text .. " " .. child.Text end
-        end
-        local norm = NormalizeMapName(text .. " " .. desc.Name)
-        local path = string.lower(desc:GetFullName())
-        if string.find(norm, wantedNorm, 1, true) and (string.find(path, "vote", 1, true) or string.find(path, "map", 1, true)) then return desc end
-      end
-    end
+  local function WaitForRoot(timeout)
+    local started = os.clock()
+    repeat
+      local char = LocalPlayer.Character
+      local hum = char and char:FindFirstChildOfClass("Humanoid")
+      local root = char and char:FindFirstChild("HumanoidRootPart")
+      if root and hum and hum.Health > 0 then return root end
+      task.wait(0.05)
+    until os.clock() - started > timeout
     return nil
   end
 
@@ -2531,121 +2538,239 @@
     if not hum then return end
     hum.Health = 0
     local started = os.clock()
-    repeat task.wait(0.2) until (LocalPlayer.Character and LocalPlayer.Character ~= oldChar and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) or os.clock() - started > 12
-    task.wait(1)
+    repeat task.wait(0.05) until (LocalPlayer.Character and LocalPlayer.Character ~= oldChar and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) or os.clock() - started > 12
   end
 
-  local function CastVote(lobby, option)
-    local voted = false
-    pcall(function()
-      local button = FindVoteGuiButton(NormalizeMapName(option.name))
-      if button then
-        if firesignal then firesignal(button.MouseButton1Click) voted = true
-        elseif getconnections then
-          for _, conn in ipairs(getconnections(button.MouseButton1Click)) do conn:Fire() voted = true end
-        end
-      end
-    end)
-    if voted then return true, "GUI" end
-    local trigger = FindVoteTrigger(lobby, option.position)
-    if not trigger then return false, "NO PAD" end
-    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return false, "NO CHARACTER" end
+  local function CastOneVote(searchRoot, board, root)
+    local trigger = FindVoteTrigger(searchRoot, board)
+    if not trigger then return false end
     if trigger.kind == "click" and fireclickdetector then
       fireclickdetector(trigger.object)
     elseif trigger.kind == "prompt" and fireproximityprompt then
       fireproximityprompt(trigger.object)
     else
-      -- نوقف على اللوحة ونلمسها
       root.AssemblyLinearVelocity = Vector3.zero
       root.CFrame = CFrame.new(trigger.part.Position + Vector3.new(0, trigger.part.Size.Y / 2 + 3, 0))
       if firetouchinterest and trigger.kind == "touch" then
-        firetouchinterest(trigger.part, root, 0) task.wait(0.1) firetouchinterest(trigger.part, root, 1)
+        firetouchinterest(trigger.part, root, 0) task.wait(0.05) firetouchinterest(trigger.part, root, 1)
       end
     end
-    return true, string.upper(trigger.kind)
+    return true
+  end
+
+  -- يصوّت للماب عدد مرات: تصويت -> ريسيت -> تصويت ...
+  local function RunVotes(board, total)
+    if MapVote.Running then return end
+    MapVote.Running = true
+    MapVote.StopRequested = false
+    MapVote.ActiveName = board.name
+    MapVote.Done = 0
+    MapVote.Total = total
+    local reason = nil
+    pcall(function()
+      local searchRoot = GetLobbyRoot() or workspace
+      for i = 1, total do
+        if MapVote.StopRequested or shared.VertexLoaded ~= true then reason = "Stopped" break end
+        if not IsBoardAlive(board) then reason = "Vote ended" break end
+        MapVote.Status = "Voting " .. i .. "/" .. total
+        local root = WaitForRoot(10)
+        if not root then reason = "No character" break end
+        local before = ParseVotes(board.votesLabel.Text)
+        if not CastOneVote(searchRoot, board, root) then reason = "No vote pad found" break end
+        local started = os.clock()
+        repeat task.wait(0.05) until ParseVotes(board.votesLabel.Text) > before or os.clock() - started > 1.5 or MapVote.StopRequested
+        MapVote.Done = i
+        if i < total and not MapVote.StopRequested then
+          MapVote.Status = "Respawning " .. i .. "/" .. total
+          ResetCharacterAndWait()
+        end
+      end
+    end)
+    if MapVote.StopRequested and not reason then reason = "Stopped" end
+    MapVote.Status = (reason and (reason .. "  +" .. MapVote.Done)) or ("Done  +" .. MapVote.Done)
+    MapVote.Running = false
   end
 
   shared.Main:Divider()
   shared.Main:SubLabel({Text = "MAP VOTE"})
-  local VoteStatusLabel
-  shared.Main:Toggle("AutoVote", "Auto Vote Map", function(arg1)
-    if not arg1 then return end
-    local handledKey, lastRoundSeen = nil, false
-    repeat
-      task.wait(0.5)
-      pcall(function()
-        local roundActive = (v14 ~= nil) or (v15 ~= nil)
-        -- لما تبدأ جولة ننسى التصويت القديم، فالتصويت الجاي يتعامل معه من جديد
-        if roundActive then
-          handledKey = nil
-          VoteStatusLabel:UpdateName("VOTE: ROUND IN PROGRESS")
-          return
-        end
-        local lobby = GetLobbyRoot()
-        if not lobby then VoteStatusLabel:UpdateName("VOTE: LOBBY NOT FOUND") return end
-        local options = DetectVoteOptions(lobby)
-        if #options == 0 then VoteStatusLabel:UpdateName("VOTE: NO MAPS SHOWN YET") return end
-        local names = {}
-        for _, option in ipairs(options) do table.insert(names, option.name) end
-        table.sort(names)
-        local key = table.concat(names, ", ")
-        if key == handledKey then return end
-
-        local wanted = GetWantedMap()
-        local wantedNorm = NormalizeMapName(wanted)
-        local match = nil
-        for _, option in ipairs(options) do
-          if NormalizeMapName(option.name) == wantedNorm then match = option end
-        end
-        if not match then
-          handledKey = key
-          VoteStatusLabel:UpdateName("MAPS: " .. key .. "  |  " .. string.upper(tostring(wanted)) .. " NOT IN VOTE")
-          return
-        end
-
-        if Options.VoteReset:GetValue() then
-          VoteStatusLabel:UpdateName("MAPS: " .. key .. "  |  RESETTING")
-          ResetCharacterAndWait()
-          -- بعد الريسيت نعيد قراءة اللوحات (ممكن تتغير أماكنها)
-          local fresh = DetectVoteOptions(lobby)
-          for _, option in ipairs(fresh) do
-            if NormalizeMapName(option.name) == wantedNorm then match = option end
-          end
-        end
-        local ok, how = CastVote(lobby, match)
-        handledKey = key
-        if ok then
-          VoteStatusLabel:UpdateName("MAPS: " .. key .. "  |  VOTED " .. string.upper(match.name) .. " (" .. how .. ")")
-        else
-          VoteStatusLabel:UpdateName("MAPS: " .. key .. "  |  COULD NOT VOTE (" .. how .. ")")
-        end
-      end)
-    until not Options.AutoVote:GetValue() or shared.VertexLoaded ~= true
-    pcall(function() VoteStatusLabel:UpdateName("VOTE: OFF") end)
-  end)
-  shared.Main:Dropdown({Name = "Vote Map", Multi = false, Required = true, Options = KnownMaps, Default = 1, Callback = function() end}, "VoteMap")
-  shared.Main:Input({Name = "Custom Map Name", Placeholder = "optional", AcceptedCharacters = "All", Callback = function() end}, "VoteCustomMap")
-  shared.Main:Toggle("VoteReset", "Reset Character Before Voting", {State = true}, function() end)
-  VoteStatusLabel = shared.Main:SubLabel({Text = "VOTE: OFF"})
-  shared.Main:Button({Name = "Show Maps In Vote Now", Callback = function()
-    local text = "Lobby not found."
-    pcall(function()
-      local lobby = GetLobbyRoot()
-      if lobby then
-        local names = {}
-        for _, option in ipairs(DetectVoteOptions(lobby)) do table.insert(names, option.name) end
-        text = (#names > 0) and table.concat(names, ", ") or "No map names found on the lobby boards right now."
-      end
-    end)
-    Window:Notify({Title = "MAPS IN VOTE", Description = text, Duration = 7})
-  end})
+  shared.Main:Toggle("MapVotePanel", "Show Map Vote Panel", {State = true}, function() end)
   shared.Main:Button({Name = "Scan Map Vote (Copy Info)", Callback = function()
     local total, copied, saved = ScanMapVote()
     local where = (copied and "Copied to clipboard. " or "") .. (saved and "Saved to HavenHub/mapvote_scan.txt." or "")
     if where == "" then where = "Your executor cannot copy or save files." end
     Window:Notify({Title = "MAP VOTE SCAN", Description = "Collected " .. tostring(total) .. " lines. " .. where, Duration = 7})
   end})
+
+  local mapVoteGui
+  pcall(function()
+    local RED, WHITE, GREY = Color3.fromRGB(225, 29, 46), Color3.fromRGB(255, 255, 255), Color3.fromRGB(165, 165, 172)
+    local PANEL_BG, CARD_BG, GREEN = Color3.fromRGB(13, 13, 15), Color3.fromRGB(22, 22, 25), Color3.fromRGB(52, 211, 153)
+    local FONT_ID = "rbxassetid://12187365364"
+    local function Make(className, props, parent)
+      local inst = Instance.new(className)
+      for k, v in pairs(props or {}) do inst[k] = v end
+      inst.Parent = parent
+      return inst
+    end
+    local function Text(props, parent, weight)
+      props.BackgroundTransparency = 1
+      props.FontFace = Font.new(FONT_ID, weight or Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+      props.TextColor3 = props.TextColor3 or WHITE
+      return Make("TextLabel", props, parent)
+    end
+    local function Round(parent, radius) return Make("UICorner", {CornerRadius = radius or UDim.new(1, 0)}, parent) end
+
+    mapVoteGui = Make("ScreenGui", {Name = "HavenMapVote", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 140, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
+    SafeParentGui(mapVoteGui)
+
+    local panel = Make("Frame", {Name = "Panel", AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = PANEL_BG, BackgroundTransparency = 0.04, BorderSizePixel = 0, Position = UDim2.new(0.5, 0, 0, 62), Size = UDim2.fromOffset(620, 226), Visible = false}, mapVoteGui)
+    Round(panel, UDim.new(0, 12))
+    Make("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = RED, Thickness = 1, Transparency = 0.45}, panel)
+    local panelScale = Make("UIScale", {Scale = 1}, panel)
+    local function RefreshScale()
+      pcall(function()
+        local vp = workspace.CurrentCamera.ViewportSize
+        panelScale.Scale = math.clamp(math.min((vp.X - 16) / 620, (vp.Y - 70) / 226 / 1.6), 0.45, 1)
+      end)
+    end
+    RefreshScale()
+    pcall(function() table.insert(HavenConnections, workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(RefreshScale)) end)
+
+    -- الرأس
+    local header = Make("TextButton", {Name = "Header", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 52)}, panel)
+    if HavenLoader.LogoAsset then
+      Make("ImageLabel", {BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 9), Size = UDim2.fromOffset(34, 34), Image = HavenLoader.LogoAsset, ScaleType = Enum.ScaleType.Fit}, header)
+    else
+      Round(Text({BackgroundTransparency = 0, BackgroundColor3 = RED, Position = UDim2.fromOffset(12, 9), Size = UDim2.fromOffset(34, 34), Text = "H", TextSize = 17}, header, Enum.FontWeight.Bold), UDim.new(0, 9)).Parent.BackgroundTransparency = 0
+    end
+    Text({Position = UDim2.fromOffset(56, 8), Size = UDim2.fromOffset(200, 18), Text = "Map Vote", TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left}, header, Enum.FontWeight.Bold)
+    local statusDot = Make("Frame", {BackgroundColor3 = GREEN, BorderSizePixel = 0, Position = UDim2.fromOffset(57, 34), Size = UDim2.fromOffset(7, 7)}, header)
+    Round(statusDot)
+    local statusText = Text({Position = UDim2.fromOffset(70, 28), Size = UDim2.fromOffset(260, 18), Text = "Waiting", TextColor3 = GREY, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, header)
+
+    local controls = Make("Frame", {AnchorPoint = Vector2.new(1, 0.5), BackgroundTransparency = 1, Position = UDim2.new(1, -12, 0, 26), Size = UDim2.fromOffset(250, 30)}, header)
+    Make("UIListLayout", {Padding = UDim.new(0, 8), FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Right, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Center}, controls)
+    local stopButton = Make("TextButton", {Name = "Stop", AutoButtonColor = false, BackgroundColor3 = RED, BorderSizePixel = 0, FontFace = Font.new(FONT_ID, Enum.FontWeight.Bold, Enum.FontStyle.Normal), LayoutOrder = 1, Size = UDim2.fromOffset(54, 26), Text = "Stop", TextColor3 = WHITE, TextSize = 11, Visible = false}, controls)
+    Round(stopButton)
+    local stepper = Make("Frame", {Name = "Stepper", BackgroundColor3 = CARD_BG, BorderSizePixel = 0, LayoutOrder = 2, Size = UDim2.fromOffset(104, 30)}, controls)
+    Round(stepper)
+    Make("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(52, 52, 58), Transparency = 0.4}, stepper)
+    local function StepButton(symbol, x)
+      return Make("TextButton", {Name = "Step" .. symbol, AutoButtonColor = false, BackgroundTransparency = 1, FontFace = Font.new(FONT_ID, Enum.FontWeight.Bold, Enum.FontStyle.Normal), Position = UDim2.fromOffset(x, 0), Size = UDim2.fromOffset(32, 30), Text = symbol, TextColor3 = GREY, TextSize = 16}, stepper)
+    end
+    local minusButton, plusButton = StepButton("-", 0), StepButton("+", 72)
+    local countText = Text({Name = "Count", Position = UDim2.fromOffset(32, 0), Size = UDim2.fromOffset(40, 30), Text = tostring(MapVote.Count), TextSize = 13}, stepper, Enum.FontWeight.Bold)
+    local hideButton = Make("TextButton", {Name = "Hide", AutoButtonColor = false, BackgroundColor3 = CARD_BG, BorderSizePixel = 0, FontFace = Font.new(FONT_ID, Enum.FontWeight.Bold, Enum.FontStyle.Normal), LayoutOrder = 3, Size = UDim2.fromOffset(30, 30), Text = "X", TextColor3 = GREY, TextSize = 11}, controls)
+    Round(hideButton)
+    Make("Frame", {BackgroundColor3 = RED, BackgroundTransparency = 0.8, BorderSizePixel = 0, Position = UDim2.fromOffset(12, 52), Size = UDim2.new(1, -24, 0, 1)}, panel)
+
+    local cardsHolder = Make("Frame", {Name = "Cards", BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 60), Size = UDim2.new(1, -24, 0, 154)}, panel)
+    Make("UIListLayout", {Padding = UDim.new(0, 8), FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder}, cardsHolder)
+
+    local function SetCount(value)
+      MapVote.Count = math.clamp(math.floor(value), 1, 50)
+      countText.Text = tostring(MapVote.Count)
+    end
+    minusButton.MouseButton1Click:Connect(function() HavenLib.PlaySound("click") SetCount(MapVote.Count - 1) end)
+    plusButton.MouseButton1Click:Connect(function() HavenLib.PlaySound("click") SetCount(MapVote.Count + 1) end)
+    stopButton.MouseButton1Click:Connect(function() HavenLib.PlaySound("click") MapVote.StopRequested = true end)
+
+    -- سحب اللوحة من الرأس
+    local dragStart, dragPos = nil, nil
+    header.InputBegan:Connect(function(inp)
+      if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then dragStart = inp.Position dragPos = panel.Position end
+    end)
+    UserInputService.InputChanged:Connect(function(inp)
+      if dragStart and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+        local delta = inp.Position - dragStart
+        panel.Position = UDim2.new(dragPos.X.Scale, dragPos.X.Offset + delta.X, dragPos.Y.Scale, dragPos.Y.Offset + delta.Y)
+      end
+    end)
+    UserInputService.InputEnded:Connect(function(inp)
+      if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then dragStart = nil end
+    end)
+
+    -- بطاقات المابات
+    local cards, cardsKey = {}, ""
+    local function BuildCards(boards)
+      for _, card in ipairs(cards) do pcall(function() card.frame:Destroy() end) end
+      cards = {}
+      local count = math.max(#boards, 1)
+      for index, board in ipairs(boards) do
+        local frame = Make("Frame", {Name = "Card", BackgroundColor3 = CARD_BG, BorderSizePixel = 0, ClipsDescendants = true, LayoutOrder = index, Size = UDim2.new(1 / count, -8 * (count - 1) / count, 1, 0)}, cardsHolder)
+        Round(frame, UDim.new(0, 10))
+        local stroke = Make("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = RED, Thickness = 2, Transparency = 1}, frame)
+        if board.image then
+          Round(Make("ImageLabel", {BackgroundTransparency = 1, Image = board.image, ScaleType = Enum.ScaleType.Crop, Size = UDim2.fromScale(1, 1)}, frame), UDim.new(0, 10))
+        end
+        local shade = Make("Frame", {BackgroundColor3 = Color3.fromRGB(0, 0, 0), BorderSizePixel = 0, Size = UDim2.fromScale(1, 1)}, frame)
+        Round(shade, UDim.new(0, 10))
+        Make("UIGradient", {Rotation = 90, Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.85), NumberSequenceKeypoint.new(0.5, 0.6), NumberSequenceKeypoint.new(1, 0.1)})}, shade)
+        local badge = Make("Frame", {AnchorPoint = Vector2.new(1, 0), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.35, BorderSizePixel = 0, Position = UDim2.new(1, -8, 0, 8), Size = UDim2.fromOffset(40, 24)}, frame)
+        Round(badge)
+        local votes = Text({Size = UDim2.fromScale(1, 1), Text = "0", TextSize = 12}, badge, Enum.FontWeight.Bold)
+        Text({Position = UDim2.new(0, 10, 1, -48), Size = UDim2.new(1, -20, 0, 18), Text = board.name, TextSize = 13, TextTruncate = Enum.TextTruncate.AtEnd, TextXAlignment = Enum.TextXAlignment.Left}, frame, Enum.FontWeight.Bold)
+        local progressText = Text({Position = UDim2.new(0, 10, 1, -30), Size = UDim2.new(1, -20, 0, 14), Text = "CLICK TO VOTE", TextColor3 = GREY, TextSize = 9, TextXAlignment = Enum.TextXAlignment.Left}, frame, Enum.FontWeight.SemiBold)
+        local track = Make("Frame", {BackgroundColor3 = Color3.fromRGB(62, 62, 68), BackgroundTransparency = 0.4, BorderSizePixel = 0, Position = UDim2.new(0, 10, 1, -10), Size = UDim2.new(1, -20, 0, 3), Visible = false}, frame)
+        Round(track)
+        local fill = Make("Frame", {BackgroundColor3 = RED, BorderSizePixel = 0, Size = UDim2.fromScale(0, 1)}, track)
+        Round(fill)
+        local button = Make("TextButton", {Name = "VoteButton", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 2}, frame)
+        button.MouseButton1Click:Connect(function()
+          if MapVote.Running then return end
+          HavenLib.PlaySound("click")
+          task.spawn(RunVotes, board, MapVote.Count)
+        end)
+        cards[index] = {frame = frame, board = board, stroke = stroke, votes = votes, progressText = progressText, track = track, fill = fill}
+      end
+    end
+
+    hideButton.MouseButton1Click:Connect(function() HavenLib.PlaySound("click") MapVote.DismissedKey = cardsKey end)
+
+    -- التحديث: نعيد البحث عن اللوحات كل ثانيتين، ونحدّث الأرقام بينها
+    task.spawn(function()
+      local lastScan = -math.huge
+      while shared.VertexLoaded == true and mapVoteGui.Parent do
+        pcall(function()
+          local stale = false
+          for _, board in ipairs(MapVote.Boards) do if not IsBoardAlive(board) then stale = true end end
+          if not MapVote.Running and (stale or os.clock() - lastScan > 2) then
+            lastScan = os.clock()
+            MapVote.Boards = DetectVoteBoards(GetLobbyRoot() or workspace)
+            local names = {}
+            for _, board in ipairs(MapVote.Boards) do table.insert(names, board.name) end
+            local key = table.concat(names, "|")
+            if key ~= cardsKey then
+              cardsKey = key
+              if #MapVote.Boards > 0 then MapVote.Status = "Voting" MapVote.ActiveName = nil end
+              BuildCards(MapVote.Boards)
+            end
+          end
+          panel.Visible = (#MapVote.Boards >= 2) and Options.MapVotePanel:GetValue() and MapVote.DismissedKey ~= cardsKey
+          stopButton.Visible = MapVote.Running
+          statusText.Text = MapVote.Status
+          statusDot.BackgroundColor3 = MapVote.Running and RED or GREEN
+          for _, card in ipairs(cards) do
+            card.votes.Text = tostring(ParseVotes(card.board.votesLabel.Text))
+            local active = (MapVote.ActiveName == card.board.name) and MapVote.Total > 0
+            card.stroke.Transparency = active and 0 or 1
+            card.track.Visible = active
+            if active then
+              card.progressText.Text = "+" .. MapVote.Done .. "/" .. MapVote.Total
+              card.progressText.TextColor3 = RED
+              card.fill.Size = UDim2.fromScale(math.clamp(MapVote.Done / MapVote.Total, 0, 1), 1)
+            else
+              card.progressText.Text = "CLICK TO VOTE"
+              card.progressText.TextColor3 = GREY
+            end
+          end
+        end)
+        task.wait(0.15)
+      end
+      MapVote.StopRequested = true
+      pcall(function() mapVoteGui:Destroy() end)
+    end)
+  end)
 
   -- قسم Target
   shared.Target:SubLabel({Text = "CHOSEN PLAYER"})
@@ -3267,6 +3392,7 @@
       if hum then workspace.CurrentCamera.CameraSubject = hum end
     end)
     pcall(function() if aimLockGui then aimLockGui:Destroy() end end)
+    pcall(function() if mapVoteGui then mapVoteGui:Destroy() end end)
     for _, key in ipairs({"tabs", "Main", "Roles", "Target", "Visual", "Player", "Tracker", "Premium", "loaded", "done"}) do shared[key] = nil end
   end)
 
