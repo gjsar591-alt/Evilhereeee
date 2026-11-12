@@ -2026,6 +2026,7 @@
   -- الأوتو فارم كله من تحت الأرض: الشخصية تمشي تحت العملات وتلقطها من تحت
   local FARM_DEPTH = 4 -- كم تنزل الشخصية تحت العملة
   local farmIsUnderground = false
+  local flingBusy = false -- وقت الفلنق نوقف النوكلب مؤقتاً (الفلنق يحتاج تصادم)
   -- يرجّع الشخصية فوق الأرض (لما يتوقف الفارم) عشان ما تطيح من الماب
   local function SurfaceFromUnderground()
     if not farmIsUnderground then return end
@@ -2301,7 +2302,7 @@
   shared.Main:Toggle("AutoFarm", "Enable Coin Auto-Farm", function(arg1)
     if arg1 then
       Noclipping = RunService.Stepped:Connect(function()
-        if LocalPlayer.Character and IsPlayerAlive(LocalPlayer, roles) then
+        if LocalPlayer.Character and IsPlayerAlive(LocalPlayer, roles) and not flingBusy then
           for _, d in pairs(LocalPlayer.Character:GetDescendants()) do if d:IsA("BasePart") and d.CanCollide then d.CanCollide = false end end
         end
       end)
@@ -2394,6 +2395,44 @@
           end
         end)
       until not Options.ShootFullBag:GetValue()
+    end
+  end)
+
+  -- فلنق يشتغل حتى والفارم شغال: نرجّع التصادم ونشيل الطفو مؤقتاً، ثم نرجع لمكاننا
+  local function FlingWithCollision(target)
+    if flingBusy then return end
+    flingBusy = true
+    pcall(function()
+      local char = LocalPlayer.Character
+      local root = char and char:FindFirstChild("HumanoidRootPart")
+      if not root then return end
+      local hadFloat = root:FindFirstChild("BodyVelocity") ~= nil
+      DisableFloat()
+      for _, name in ipairs({"HumanoidRootPart", "Head", "Torso", "UpperTorso", "LowerTorso"}) do
+        local part = char:FindFirstChild(name)
+        if part then part.CanCollide = true end
+      end
+      res:fling(target)
+      if hadFloat then EnableFloat() end
+    end)
+    flingBusy = false
+  end
+
+  -- بريء (بدون سكين ولا مسدس): يسوي فلنق للقاتل
+  shared.Main:Toggle("FlingFullBag", "Fling Murderer When Bag Is Full", function(arg1)
+    if arg1 then
+      repeat task.wait(0.3)
+        pcall(function()
+          local innocent = not HasTool(LocalPlayer, "Knife") and not HasTool(LocalPlayer, "Gun")
+          if innocent and v14 and v14 ~= LocalPlayer.Name and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
+            local murderer = Players:FindFirstChild(v14)
+            if murderer and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") and IsPlayerAlive(murderer, roles) then
+              FlingWithCollision(murderer)
+              task.wait(2)
+            end
+          end
+        end)
+      until not Options.FlingFullBag:GetValue()
     end
   end)
 
