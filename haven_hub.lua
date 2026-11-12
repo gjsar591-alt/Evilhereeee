@@ -2049,13 +2049,15 @@
     return (elite ~= nil and coins >= 50) or (elite == nil and coins >= 40)
   end
 
-  local function TweenTo(targetCF, speed, useQuad, waitCollect, targetCoin)
+  local function TweenTo(targetCF, speed, useQuad, waitCollect, targetCoin, exactSpeed)
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not root then return end
     if v17 then v17:Cancel() end
     root.AssemblyLinearVelocity = Vector3.zero
     root.AssemblyAngularVelocity = Vector3.zero
-    local dur = math.clamp((root.Position - targetCF.Position).Magnitude / speed, 0.15, 5)
+    local dur = (root.Position - targetCF.Position).Magnitude / speed
+    -- exactSpeed: السرعة ثابتة مهما بعدت المسافة (بدون حد الخمس ثواني اللي كان يسرّعها)
+    dur = exactSpeed and math.max(dur, 0.1) or math.clamp(dur, 0.15, 5)
     local tween = TweenService:Create(root, TweenInfo.new(dur, useQuad and Enum.EasingStyle.Quad or Enum.EasingStyle.Linear, useQuad and Enum.EasingDirection.Out or Enum.EasingDirection.In), {CFrame = targetCF})
     v17 = tween tween:Play()
     if waitCollect and targetCoin then
@@ -2117,9 +2119,16 @@
     if root and root:FindFirstChild("BodyVelocity") then root.BodyVelocity:Destroy() end
   end
 
+  -- الوضع الآمن: بدون أي انتقال فوري لمسافات بعيدة
+  local function IsFarmSafe()
+    return (Options.FarmSafe == nil) or Options.FarmSafe:GetValue()
+  end
+
   local function ResetOrLobby()
     pcall(function()
       if Options.Mode:GetValue() == "Closest + Reset" then LocalPlayer.Character.Humanoid.Health = 0 return end
+      -- في الوضع الآمن ما ننتقل للّوبي فوراً لما تمتلي الشنطة، نبقى مكاننا لين تخلص الجولة
+      if IsFarmSafe() then return end
       for _, child in pairs(workspace:GetChildren()) do
         if (child:IsA("Model") or child:IsA("Folder")) and string.find(string.lower(child.Name), "lobby") then
           for _, desc in pairs(child:GetDescendants()) do
@@ -2158,16 +2167,17 @@
   local function MoveToCoin(coin, rootPart)
     local pos = coin.CoinVisual.Position
     local mag = (rootPart.Position - pos).Magnitude
-    local speed = shared.Premium and (shared.speed or 23) or 21
+    local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 40)
+    local safe = IsFarmSafe()
     if not IsBagFull() and CoinAttribute(coin, true) then
       local cf = CFrame.new(pos.X, pos.Y, pos.Z)
-      if mag > 200 then
+      if mag > 200 and not safe then
         rootPart.CFrame = cf * CFrame.new(0, 10, 0) task.wait(2)
         TweenTo(cf * CFrame.new(0, 1.5, 0), 5000, false)
       elseif Options.Mode:GetValue() == "Random Coins" then
-        TweenTo(cf * CFrame.new(0, 1.5, 0), 20, true, true, coin)
+        TweenTo(cf * CFrame.new(0, 1.5, 0), math.min(speed, 22), true, true, coin, safe)
       else
-        TweenTo(cf * CFrame.new(0, 1.5, 0), speed, false)
+        TweenTo(cf * CFrame.new(0, 1.5, 0), speed, false, false, nil, safe)
       end
     end
   end
@@ -2253,6 +2263,8 @@
   end)
 
   shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Closest Coins", "Closest + Reset", "Random Coins"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
+  shared.Main:Slider("FarmSpeed", "Farm Speed", 16, 40, 26, "Percent", function() end)
+  shared.Main:Toggle("FarmSafe", "Safe Farm (Anti-Kick)", {State = true}, function() end)
   shared.Main:Toggle("KillAllFullBag", "Kill Everyone When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait()
@@ -3665,12 +3677,17 @@
   end)
 
   task.spawn(function()
+    local lastRolesRequest = -math.huge
     while task.wait(0.1) do
       if shared.VertexLoaded ~= true then break end
       pcall(function()
         v14 = FindPlayerWithTool("Knife")
         v15 = FindPlayerWithTool("Gun")
-        roles = ReplicatedStorage:FindFirstChild("GetPlayerData", true):InvokeServer()
+        -- طلب بيانات اللاعبين من السيرفر مرتين بالثانية بدل عشر مرات (الطلبات الكثيرة ممكن تسبب طرد)
+        if os.clock() - lastRolesRequest >= 0.5 then
+          lastRolesRequest = os.clock()
+          roles = ReplicatedStorage:FindFirstChild("GetPlayerData", true):InvokeServer()
+        end
       end)
     end
     if unboxConnection then unboxConnection:Disconnect() end
