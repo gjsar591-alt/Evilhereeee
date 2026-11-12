@@ -3239,14 +3239,14 @@
   shared.Visual:Divider()
   shared.Visual:Dropdown({Name = "Pick Emote", Multi = false, Required = true, Options = {"ninja", "dab", "floss", "headless", "zen", "zombie", "sit"}, Default = 1, Callback = function() end}, "Emote")
   shared.Visual:Toggle("AutoEmote", "Spam Emote", function()
-    while Options.AutoEmote:GetValue() do task.wait(0.2) res:emote(Options.Emote:GetValue()) end
+    while Options.AutoEmote:GetValue() do task.wait(1.5) res:emote(Options.Emote:GetValue()) end
   end)
 
   -- قسم Combat & Roles
   shared.Roles:SubLabel({Text = "MURDERER MODE"})
   shared.Roles:Toggle("KillAura", "Kill Aura", function(arg1)
     if arg1 then
-      repeat task.wait()
+      repeat task.wait(0.15) -- كان كل فريم: طلبات أقل للسيرفر
         pcall(function()
           local hasKnife = LocalPlayer.Backpack:FindFirstChild("Knife") or LocalPlayer.Character:FindFirstChild("Knife")
           for _, p in ipairs(Players:GetPlayers()) do
@@ -3277,7 +3277,7 @@
 
   shared.Roles:Toggle("KillAll", "Kill All Players", function(arg1)
     if arg1 then
-      repeat task.wait()
+      repeat task.wait(0.25) -- كان كل فريم: طلبات أقل للسيرفر
         if v14 and (IsBagFull() or not Options.AutoFarm:GetValue()) and v14 == LocalPlayer.Name then KillAll() end
       until not Options.KillAll:GetValue()
     end
