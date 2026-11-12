@@ -3074,7 +3074,7 @@
             end
             if os.clock() - lastTouch > 0.2 then lastTouch = os.clock() TouchVotePad(spot.trigger, root) end
           end)
-        until os.clock() - started > 0.9 or MapVote.StopRequested
+        until os.clock() - started > 2 or MapVote.StopRequested -- السيرفر أحياناً يتأخر بتحديث العدد
         if counted then
           misses = 0
           MapVote.Done = MapVote.Done + 1
@@ -3085,6 +3085,8 @@
         else
           -- الصوت ما انحسب: ما نسوي ريسيت، نعيد المحاولة بنفس الشخصية. ثلاث مرات ورا بعض = التصويت خلص
           misses = misses + 1
+          -- أول فشل: غالباً صوتك محسوب من قبل (كنت واقف على المنصة)، فالعدد ما يزيد إلا بعد ريسيت
+          if misses == 1 and not MapVote.StopRequested then ResetCharacterAndWait() end
           if misses >= 3 then reason = (MapVote.Done > 0) and "Vote ended" or "No votes counted - press Scan Map Vote" break end
         end
       end
