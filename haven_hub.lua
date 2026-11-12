@@ -1960,20 +1960,53 @@
     emote = function(_, emoteName) pcall(function() ReplicatedStorage.Remotes.Misc.PlayEmote:Fire(emoteName) end) end,
     fling = function(_, targetPlayer)
       pcall(function()
-        local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local tRoot = targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if myRoot and tRoot then
-          local savedCF, start = myRoot.CFrame, os.clock()
-          while os.clock() - start < 1.2 and tRoot.Parent do
-            RunService.Heartbeat:Wait()
-            myRoot.CFrame = tRoot.CFrame
-            myRoot.AssemblyLinearVelocity = Vector3.new(9000, 9000, 9000)
-            myRoot.AssemblyAngularVelocity = Vector3.new(9000, 9000, 9000)
-          end
-          myRoot.AssemblyLinearVelocity = Vector3.zero
-          myRoot.AssemblyAngularVelocity = Vector3.zero
-          myRoot.CFrame = savedCF
+        local char = LocalPlayer.Character
+        local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local tChar = targetPlayer and targetPlayer.Character
+        local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+        local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+        if not (myRoot and hum and tRoot and tHum) then return end
+        local savedCF, startPos = myRoot.CFrame, tRoot.Position
+        local oldDestroyHeight = workspace.FallenPartsDestroyHeight
+        workspace.FallenPartsDestroyHeight = 0 / 0 -- عشان ما تنحذف أجزاءنا لو طارت
+        -- قوة دفع ضخمة ثابتة على الجذر: هذي اللي تقذف الهدف لما نلمسه
+        local bv = Instance.new("BodyVelocity")
+        bv.Name = "HavenFlingVel" bv.Velocity = Vector3.new(9e7, -9e8, 9e7) bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge) bv.Parent = myRoot
+        hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+        myRoot.CanCollide = true
+        local function place(offset, angle)
+          local cf = CFrame.new(tRoot.Position) * offset * CFrame.Angles(math.rad(angle), 0, 0)
+          myRoot.CFrame = cf
+          myRoot.AssemblyLinearVelocity = Vector3.new(9e7, -9e8, 9e7)
+          myRoot.AssemblyAngularVelocity = Vector3.new(9e8, 9e8, 9e8)
         end
+        local start, angle = os.clock(), 0
+        repeat
+          angle = angle + 100
+          local lead = tHum.MoveDirection * tRoot.AssemblyLinearVelocity.Magnitude / 1.25
+          -- نضربه من فوق ومن الجنب ونحن ندور، والدفع كله لتحت: يخترق الأرض ويطيح في الفويد
+          place(CFrame.new(Vector3.new(0, 2, 0) + lead), angle) task.wait()
+          place(CFrame.new(Vector3.new(0, 0.5, 0) + lead), angle) task.wait()
+          place(CFrame.new(Vector3.new(1.5, 2, -1.5) + lead), angle) task.wait()
+          place(CFrame.new(Vector3.new(-1.5, 0.5, 1.5) + lead), angle) task.wait()
+          -- نكمل لين يموت أو يطيح تحت الماب أو يطير بعيد (مو بس أول ما يتحرك)
+        until os.clock() - start > 3.5 or not tRoot.Parent or targetPlayer.Character ~= tChar
+          or tHum.Health <= 0 or hum.Health <= 0
+          or tRoot.Position.Y < startPos.Y - 150 or (tRoot.Position - startPos).Magnitude > 1500
+        bv:Destroy()
+        hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+        -- نرجع لمكاننا ونصفّر السرعة (نكرر لين نثبت فعلاً)
+        local back = os.clock()
+        repeat
+          myRoot.CFrame = savedCF
+          for _, part in ipairs(char:GetChildren()) do
+            if part:IsA("BasePart") then part.AssemblyLinearVelocity = Vector3.zero part.AssemblyAngularVelocity = Vector3.zero end
+          end
+          hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+          task.wait()
+        until (myRoot.Position - savedCF.Position).Magnitude < 10 or os.clock() - back > 1
+        workspace.FallenPartsDestroyHeight = oldDestroyHeight
       end)
     end
   }
@@ -2366,16 +2399,39 @@
     return best
   end
 
-  -- يضرب بالسكين كل لاعب حي يحقق الشرط
+  -- يضرب بالسكين كل لاعب حي يحقق الشرط: ينتقل وراه، يطعنه، وينتقل للي بعده، ثم يرجع لمكانه
+  -- (السيرفر يرفض الطعنة لو كنت بعيد، عشان كذا لازم ننتقل لكل واحد)
   local function StabPlayersWhere(condition)
     EquipTool("Knife")
-    local knife = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife")
+    task.wait(0.1)
+    local knife = HasTool(LocalPlayer, "Knife")
     local touched = knife and knife:FindFirstChild("Events") and knife.Events:FindFirstChild("HandleTouched")
-    if not touched then return end
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not (touched and myRoot) then return 0 end
+    local home, stabbed = myRoot.CFrame, 0
     for _, p in ipairs(Players:GetPlayers()) do
-      local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-      if tRoot and IsPlayerAlive(p, roles) and condition(p) then touched:FireServer(tRoot) end
+      local tChar = (p ~= LocalPlayer) and p.Character
+      local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+      local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+      if tRoot and tHum and tHum.Health > 0 and IsPlayerAlive(p, roles) and condition(p) then
+        pcall(function()
+          local started = os.clock()
+          repeat
+            myRoot.AssemblyLinearVelocity = Vector3.zero
+            myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, 2)
+            task.wait()
+          until os.clock() - started > 0.15 or not tRoot.Parent
+          for _, name in ipairs({"HumanoidRootPart", "Head", "UpperTorso", "Torso"}) do
+            local part = tChar:FindFirstChild(name)
+            if part then touched:FireServer(part) end
+          end
+          task.wait(0.1)
+          stabbed = stabbed + 1
+        end)
+      end
     end
+    pcall(function() myRoot.AssemblyLinearVelocity = Vector3.zero myRoot.CFrame = home end)
+    return stabbed
   end
 
   -- القاتل: يقتل كل اللي بالجولة
@@ -2486,26 +2542,32 @@
   -- وضع الزومبي: الناجين معهم مسدسات والزومبي معهم سكاكين
   shared.Main:SubLabel({Text = "ZOMBIE MODE"})
 
-  -- ناجي: يقتل كل الزومبي واحد ورا الثاني (الأقرب أول)
+  -- ناجي: ينتقل لكل زومبي (الأقرب أول)، يطلق عليه من قريب، ينتظر إعادة التعبئة، ويكمل على اللي بعده لين يخلصون
   shared.Main:Toggle("ZombieShoot", "Survivor: Kill Zombies When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait(0.1)
         pcall(function()
           if not (HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles)) then return end
+          if IsGunReloading() then return end
           local zombie = NearestPlayerWhere(function(p) return HasTool(p, "Knife") end)
-          if zombie then EquipTool("Gun") ShootAtPlayer(zombie) end
+          if not zombie then return end
+          if TeleportShoot(zombie) then
+            -- ننتظر الطلقة توصل، ولو الزومبي لسا حي نرجع له بالدورة الجاية
+            task.wait(0.4)
+          end
         end)
       until not Options.ZombieShoot:GetValue()
     end
   end)
 
-  -- زومبي: يقتل كل الناجين (اللي ما معهم سكين)
+  -- زومبي: ينتقل لكل ناجي (اللي ما معه سكين) ويطعنه عشان يتحول زومبي، واحد ورا الثاني
   shared.Main:Toggle("ZombieKillAll", "Zombie: Kill Survivors When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait(0.2)
         pcall(function()
           if not (HasTool(LocalPlayer, "Knife") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles)) then return end
-          StabPlayersWhere(function(p) return not HasTool(p, "Knife") end)
+          local hit = StabPlayersWhere(function(p) return not HasTool(p, "Knife") end)
+          if hit > 0 then task.wait(0.5) end
         end)
       until not Options.ZombieKillAll:GetValue()
     end
@@ -3262,6 +3324,61 @@
       if gunDrop and not gunDrop:FindFirstChild("GunESP") then
         local hl = Instance.new("Highlight", gunDrop)
         hl.Name = "GunESP" hl.FillTransparency = 0.5 hl.FillColor = Color3.fromRGB(128, 225, 0) hl.OutlineColor = Color3.fromRGB(0, 163, 0)
+      end
+    end
+  end)
+
+  -- ==========================================================================
+  -- إخفاء نوافذ MM2 نفسها (العروض، الهدايا، التبادل، نتائج الجولة... إلخ)
+  -- نخفي كل ScreenGui من اللعبة ما عدا MainGUI (فيه العملات والدور) وواجهات الهب،
+  -- وداخل MainGUI نخفي الإطارات اللي اسمها يدل على نافذة منبثقة.
+  -- ==========================================================================
+  shared.Visual:Divider()
+  shared.Visual:SubLabel({Text = "MM2 INTERFACE"})
+  local hiddenMm2 = {}  -- [Instance] = القيمة الأصلية (Enabled أو Visible)
+  local hiddenMm2Conn
+  local POPUP_WORDS = {"popup", "notif", "prompt", "alert", "offer", "gift", "trade", "shop", "reward", "announce", "event", "promo", "unbox", "code", "pass", "sale", "bundle", "daily", "spin", "crate", "battle", "quest", "season", "news", "update", "rate", "friend", "invite", "vote", "results"}
+  local function LooksLikePopup(name)
+    name = string.lower(name)
+    for _, w in ipairs(POPUP_WORDS) do if string.find(name, w, 1, true) then return true end end
+    return false
+  end
+  local function HideMm2Gui(obj)
+    if hiddenMm2[obj] ~= nil then return end
+    local name = obj.Name
+    if string.sub(name, 1, 5) == "Haven" then return end -- واجهاتنا
+    if obj:IsA("ScreenGui") and obj.Parent == LocalPlayer.PlayerGui then
+      if name == "MainGUI" then return end -- نحتاجه للعملات والدور
+      hiddenMm2[obj] = obj.Enabled obj.Enabled = false
+    elseif obj:IsA("GuiObject") and obj.Parent and obj.Parent.Name == "MainGUI" and LooksLikePopup(name) then
+      hiddenMm2[obj] = obj.Visible obj.Visible = false
+    end
+  end
+  shared.Visual:Toggle("HideMm2Popups", "Hide MM2 Popups", function(arg1)
+    if arg1 then
+      local pg = LocalPlayer.PlayerGui
+      hiddenMm2Conn = pg.DescendantAdded:Connect(function(obj) task.defer(function() pcall(HideMm2Gui, obj) end) end)
+      repeat
+        pcall(function()
+          for _, gui in ipairs(pg:GetChildren()) do HideMm2Gui(gui) end
+          local main = pg:FindFirstChild("MainGUI")
+          if main then for _, child in ipairs(main:GetChildren()) do HideMm2Gui(child) end end
+          -- لو اللعبة رجّعت تظهر شي خفيناه، نخفيه مرة ثانية
+          for obj in pairs(hiddenMm2) do
+            if obj.Parent then
+              if obj:IsA("ScreenGui") then obj.Enabled = false else obj.Visible = false end
+            end
+          end
+        end)
+        task.wait(0.5)
+      until not Options.HideMm2Popups:GetValue()
+      -- انطفى الزر: نرجّع كل شي مثل ما كان
+      if hiddenMm2Conn then hiddenMm2Conn:Disconnect() hiddenMm2Conn = nil end
+      for obj, original in pairs(hiddenMm2) do
+        pcall(function()
+          if obj:IsA("ScreenGui") then obj.Enabled = original else obj.Visible = original end
+        end)
+        hiddenMm2[obj] = nil
       end
     end
   end)
