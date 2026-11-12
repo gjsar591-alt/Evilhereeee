@@ -2322,8 +2322,9 @@
     return (backpack and backpack:FindFirstChild(toolName)) or (player.Character and player.Character:FindFirstChild(toolName))
   end
 
-  -- يطلق على لاعب. الطلقة تطلع من عند الهدف نفسه فتصيب حتى لو بينكم جدار
-  local function ShootAtPlayer(target)
+  -- يطلق على لاعب. الافتراضي: الطلقة تطلع من عند الهدف نفسه فتصيب حتى لو بينكم جدار.
+  -- fromSelf = true: الطلقة تطلع من مسدسك أنت (تُستخدم لما تكون واقف جنب الهدف)
+  local function ShootAtPlayer(target, fromSelf)
     local gun = HasTool(LocalPlayer, "Gun")
     local tChar = target and target.Character
     local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
@@ -2331,8 +2332,14 @@
     local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not (gun and tRoot and tHum and myRoot) then return false end
     local predictedCF = CFrame.new(tRoot.Position + (tRoot.AssemblyLinearVelocity or Vector3.zero) * Vector3.new(0, 0.5, 0) * 0.18666666666666665 + (tHum.MoveDirection or Vector3.zero) * 2.8)
-    local att = tRoot:FindFirstChild("RootAttachment")
-    local originCF = att and (att.WorldCFrame * CFrame.new(0, 2, 0)) or tRoot.CFrame
+    local originCF
+    if fromSelf then
+      local shoulder = myRoot:FindFirstChild("GunShoulderAttachment")
+      originCF = shoulder and shoulder.WorldCFrame or myRoot.CFrame
+    else
+      local att = tRoot:FindFirstChild("RootAttachment")
+      originCF = att and (att.WorldCFrame * CFrame.new(0, 2, 0)) or tRoot.CFrame
+    end
     local handle = gun:FindFirstChild("Handle")
     local reload = handle and handle:FindFirstChild("Reload")
     if reload and reload.Playing then return false end
@@ -2384,14 +2391,52 @@
     end
   end)
 
-  -- الشريف (أو أي أحد معه المسدس): يقتل القاتل
+  local function IsGunReloading()
+    local gun = HasTool(LocalPlayer, "Gun")
+    local handle = gun and gun:FindFirstChild("Handle")
+    local reload = handle and handle:FindFirstChild("Reload")
+    return reload ~= nil and reload.Playing == true
+  end
+
+  -- ينتقل ورا الهدف مباشرة، يطلق عليه من قريب، ثم يرجع لمكانه
+  local function TeleportShoot(target)
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local tRoot = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+    if not (myRoot and tRoot) then return false end
+    EquipTool("Gun")
+    if IsGunReloading() then return false end
+    local home = myRoot.CFrame
+    local fired = false
+    pcall(function()
+      -- نبقى ورا الهدف لحظة عشان السيرفر يسجّل مكاننا، ثم نطلق
+      local started = os.clock()
+      repeat
+        local behind = (tRoot.CFrame * CFrame.new(0, 0, 4)).Position
+        myRoot.AssemblyLinearVelocity = Vector3.zero
+        myRoot.CFrame = CFrame.lookAt(behind, tRoot.Position)
+        task.wait()
+      until os.clock() - started > 0.2 or not tRoot.Parent
+      fired = ShootAtPlayer(target, true)
+      task.wait(0.15)
+    end)
+    -- نرجع لمكاننا (تحت الأرض لو الفارم شغال)
+    pcall(function()
+      myRoot.AssemblyLinearVelocity = Vector3.zero
+      myRoot.CFrame = home
+    end)
+    return fired
+  end
+
+  -- الشريف (أو أي أحد معه المسدس): ينتقل للقاتل، يطلق عليه ويقتله، ويرجع
   shared.Main:Toggle("ShootFullBag", "Shoot Murderer When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait(0.1)
         pcall(function()
           if v14 and v14 ~= LocalPlayer.Name and HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
-            EquipTool("Gun")
-            ShootAtPlayer(Players:FindFirstChild(v14))
+            local murderer = Players:FindFirstChild(v14)
+            if murderer and IsPlayerAlive(murderer, roles) then
+              if TeleportShoot(murderer) then task.wait(0.4) end
+            end
           end
         end)
       until not Options.ShootFullBag:GetValue()
