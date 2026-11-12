@@ -2276,20 +2276,14 @@
       end
 
       if not IsBagFull() or not root or not hum or hum.Health <= 0 or not IsPlayerAlive(LocalPlayer, roles) then farmFullHandled = false farmStep() return end
-      -- الشنطة امتلت: نوقف الفارم في مكانه لين الجولة الجاية
-      if Options.FarmStopFull == nil or Options.FarmStopFull:GetValue() then
-        if not farmFullHandled then
-          farmFullHandled = true
-          v18 = nil
-          root.AssemblyLinearVelocity = Vector3.zero
-          TweenService:Create(root, TweenInfo.new(0.05), {CFrame = root.CFrame}):Play() -- يوقف أي حركة شغالة
-          Window:Notify({Title = "AUTO FARM", Description = "Bag is full. Farm paused until the next round.", Duration = 5})
-        end
-        return
+      -- الشنطة امتلت: نوقف الفارم في مكانه لين الجولة الجاية (دايماً، في كل أوضاع الفارم الثلاثة)
+      if not farmFullHandled then
+        farmFullHandled = true
+        v18 = nil
+        root.AssemblyLinearVelocity = Vector3.zero
+        TweenService:Create(root, TweenInfo.new(0.05), {CFrame = root.CFrame}):Play() -- يوقف أي حركة شغالة
+        Window:Notify({Title = "AUTO FARM", Description = "Bag is full. Farm paused until the next round.", Duration = 5})
       end
-      if Options.KillAll:GetValue() or Options.KillM:GetValue() or Options.AutoShoot:GetValue() then
-        if v14 == LocalPlayer.Name or v15 == LocalPlayer.Name then farmStep() else ResetOrLobby() end
-      else ResetOrLobby() end
     end)
   end
 
@@ -2356,7 +2350,6 @@
   shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Closest Coins", "Closest + Reset", "Random Coins"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
   shared.Main:Slider("FarmSpeed", "Farm Speed", 16, 40, 26, "Percent", function() end)
   shared.Main:Toggle("FarmSafe", "Safe Farm (Anti-Kick)", {State = true}, function() end)
-  shared.Main:Toggle("FarmStopFull", "Stop Farm When Bag Is Full", {State = true}, function() end)
   shared.Main:Toggle("FarmUnder", "Underground Farm", function(arg1)
     -- لو طفّيته والفارم شغال: نطلع فوق الأرض مباشرة
     if not arg1 then SurfaceFromUnderground() end
