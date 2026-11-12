@@ -2424,7 +2424,9 @@
       repeat task.wait(0.3)
         pcall(function()
           local innocent = not HasTool(LocalPlayer, "Knife") and not HasTool(LocalPlayer, "Gun")
-          if innocent and v14 and v14 ~= LocalPlayer.Name and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
+          -- يشتغل لما تمتلي الشنطة، ويكمل حتى لو متّ وطلعت من الجولة
+          local outOfRound = not IsPlayerAlive(LocalPlayer, roles)
+          if innocent and v14 and v14 ~= LocalPlayer.Name and (IsBagFull() or outOfRound) then
             local murderer = Players:FindFirstChild(v14)
             if murderer and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") and IsPlayerAlive(murderer, roles) then
               FlingWithCollision(murderer)
