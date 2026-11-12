@@ -2817,6 +2817,18 @@
     if myRoot and tChar and tChar:FindFirstChild("HumanoidRootPart") then myRoot.CFrame = tChar.HumanoidRootPart.CFrame end
   end})
 
+  local function TeleportToRole(name, roleLabel)
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not name then Window:Notify({Title = "HAVEN HUB", Description = "No " .. roleLabel .. " right now.", Duration = 4}) return end
+    if name == LocalPlayer.Name then Window:Notify({Title = "HAVEN HUB", Description = "You are the " .. roleLabel .. ".", Duration = 4}) return end
+    local player = Players:FindFirstChild(name)
+    local tRoot = player and player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not (myRoot and tRoot) then Window:Notify({Title = "HAVEN HUB", Description = "Could not find the " .. roleLabel .. ".", Duration = 4}) return end
+    myRoot.AssemblyLinearVelocity = Vector3.zero
+    myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
+  end
+  shared.Target:Button({Name = "Go To Murderer", Callback = function() pcall(TeleportToRole, v14, "murderer") end})
+  shared.Target:Button({Name = "Go To Sheriff", Callback = function() pcall(TeleportToRole, v15, "sheriff") end})
   shared.Target:Divider()
   shared.Target:Toggle("FlingSheriff", "Fling The Sheriff", function(arg1)
     if arg1 then
@@ -2918,6 +2930,90 @@
     end
   end)
 
+  shared.Roles:Toggle("KillAllFullBag", "Kill Everyone When Bag Is Full", function(arg1)
+    if arg1 then
+      repeat task.wait()
+        if v14 and v14 == LocalPlayer.Name and IsBagFull() then KillAll() end
+      until not Options.KillAllFullBag:GetValue()
+    end
+  end)
+
+  -- Knife Throw Auto Aim: لما ترمي السكين بنفسك، يوجّه الرمية لأقرب لاعب
+  local knifeAimActive, knifeAimOldNamecall = false, nil
+  local function GetKnifeAimPosition()
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil end
+    local bestPos, bestDist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+      local char = (p ~= LocalPlayer) and p.Character
+      local tRoot = char and char:FindFirstChild("HumanoidRootPart")
+      local hum = char and char:FindFirstChildOfClass("Humanoid")
+      if tRoot and hum and hum.Health > 0 and IsPlayerAlive(p, roles) then
+        local dist = (tRoot.Position - myRoot.Position).Magnitude
+        if dist < bestDist then
+          bestDist = dist
+          bestPos = tRoot.Position + tRoot.AssemblyLinearVelocity * 0.12
+        end
+      end
+    end
+    return bestPos
+  end
+  -- يبدّل هدف الرمية داخل أرقام الأمر المرسل للسيرفر مع الحفاظ على نوع كل قيمة
+  local function RedirectThrowArgs(args, targetPos)
+    local spatial = {}
+    for i = 1, args.n do
+      local kind = typeof(args[i])
+      if kind == "CFrame" or kind == "Vector3" then table.insert(spatial, i) end
+    end
+    if #spatial == 0 then return false end
+    local last = spatial[#spatial]
+    if typeof(args[last]) == "Vector3" then
+      args[last] = targetPos
+    elseif #spatial == 1 then
+      args[last] = CFrame.lookAt(args[last].Position, targetPos)
+    else
+      args[last] = CFrame.new(targetPos)
+    end
+    return true
+  end
+  local function InstallKnifeAimHook()
+    if knifeAimOldNamecall then return true end
+    if not (hookmetamethod and getnamecallmethod and checkcaller and newcclosure) then return false end
+    local ok = pcall(function()
+      knifeAimOldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        if knifeAimActive and not checkcaller() and getnamecallmethod() == "FireServer" then
+          local args = table.pack(...)
+          local redirected = false
+          pcall(function()
+            if typeof(self) == "Instance" and self:IsA("RemoteEvent") and string.find(string.lower(self.Name), "throw", 1, true) then
+              local char = LocalPlayer.Character
+              if char and self:IsDescendantOf(char) then
+                local targetPos = GetKnifeAimPosition()
+                if targetPos then redirected = RedirectThrowArgs(args, targetPos) end
+              end
+            end
+          end)
+          if redirected then return knifeAimOldNamecall(self, table.unpack(args, 1, args.n)) end
+        end
+        return knifeAimOldNamecall(self, ...)
+      end))
+    end)
+    return ok and knifeAimOldNamecall ~= nil
+  end
+  shared.Roles:Toggle("KnifeAim", "Knife Throw Auto Aim", function(arg1)
+    if arg1 and not InstallKnifeAimHook() then
+      knifeAimActive = false
+      Window:Notify({Title = "HAVEN HUB", Description = "Your executor does not support this feature (needs hookmetamethod).", Duration = 6})
+      task.defer(function() pcall(function() Options.KnifeAim:UpdateState(false) end) end)
+      return
+    end
+    knifeAimActive = arg1 and true or false
+    if arg1 then
+      repeat task.wait(0.2) until not Options.KnifeAim:GetValue() or shared.VertexLoaded ~= true
+      knifeAimActive = false
+    end
+  end)
+
   shared.Roles:Divider()
   shared.Roles:SubLabel({Text = "SHERIFF MODE"})
   shared.Roles:Toggle("SilentAim", "Silent Aim", function(arg1)
@@ -2969,6 +3065,88 @@
   end)
 
   shared.Roles:Keybind("ShootBind", "Shoot Murderer Hotkey", function() pcall(function() EquipTool("Gun") ShootMurderer() end) end)
+  shared.Roles:Toggle("ShootFullBag", "Shoot Murderer When Bag Is Full", function(arg1)
+    if arg1 then
+      repeat task.wait()
+        pcall(function()
+          local hasGun = LocalPlayer.Backpack:FindFirstChild("Gun") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun"))
+          if hasGun and v14 and v14 ~= LocalPlayer.Name and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
+            EquipTool("Gun") ShootMurderer()
+          end
+        end)
+      until not Options.ShootFullBag:GetValue()
+    end
+  end)
+
+  -- وضع الزومبي: الناجين معهم مسدسات والزومبي معهم سكاكين
+  shared.Roles:Divider()
+  shared.Roles:SubLabel({Text = "ZOMBIE MODE"})
+
+  local function HasTool(player, toolName)
+    local backpack = player:FindFirstChild("Backpack")
+    return (backpack and backpack:FindFirstChild(toolName)) or (player.Character and player.Character:FindFirstChild(toolName))
+  end
+  -- يطلق على لاعب محدد (نفس طريقة Shoot Murderer لكن لأي لاعب)
+  local function ShootAtPlayer(target)
+    local gun = HasTool(LocalPlayer, "Gun")
+    local tChar = target and target.Character
+    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+    local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not (gun and tRoot and tHum and myRoot) then return end
+    local predictedCF = CFrame.new(tRoot.Position + (tRoot.AssemblyLinearVelocity or Vector3.zero) * Vector3.new(0, 0.5, 0) * 0.18666666666666665 + (tHum.MoveDirection or Vector3.zero) * 2.8)
+    local att = myRoot:FindFirstChild("GunShoulderAttachment")
+    local originCF = att and att.WorldCFrame or myRoot.CFrame
+    local handle = gun:FindFirstChild("Handle")
+    local reload = handle and handle:FindFirstChild("Reload")
+    if reload and not reload.Playing then
+      local equipped = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
+      local shoot = equipped and equipped:FindFirstChild("Shoot")
+      if shoot then shoot:FireServer(originCF, predictedCF) end
+    end
+  end
+
+  shared.Roles:Toggle("ZombieShoot", "Zombies: Auto Shoot As Survivor", function(arg1)
+    if arg1 then
+      repeat task.wait(0.1)
+        pcall(function()
+          local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+          if not (myRoot and HasTool(LocalPlayer, "Gun") and IsPlayerAlive(LocalPlayer, roles)) then return end
+          -- أقرب زومبي (لاعب معه سكين) ظاهر قدامك
+          local best, bestDist = nil, math.huge
+          for _, p in ipairs(Players:GetPlayers()) do
+            local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+            if tRoot and HasTool(p, "Knife") and IsPlayerAlive(p, roles) and IsVisible(p) then
+              local dist = (tRoot.Position - myRoot.Position).Magnitude
+              if dist < bestDist then bestDist = dist best = p end
+            end
+          end
+          if best then EquipTool("Gun") ShootAtPlayer(best) end
+        end)
+      until not Options.ZombieShoot:GetValue()
+    end
+  end)
+
+  shared.Roles:Toggle("ZombieKillAll", "Zombies: Kill All As Zombie", function(arg1)
+    if arg1 then
+      repeat task.wait(0.1)
+        pcall(function()
+          if not (HasTool(LocalPlayer, "Knife") and IsPlayerAlive(LocalPlayer, roles)) then return end
+          EquipTool("Knife")
+          local knife = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife")
+          if not knife then return end
+          for _, p in ipairs(Players:GetPlayers()) do
+            local tRoot = (p ~= LocalPlayer) and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+            -- الناجين فقط: اللي ما معهم سكين
+            if tRoot and not HasTool(p, "Knife") and IsPlayerAlive(p, roles) then
+              knife.Events.HandleTouched:FireServer(tRoot)
+            end
+          end
+        end)
+      until not Options.ZombieKillAll:GetValue()
+    end
+  end)
+
 
   -- Aim Lock: يثبّت الكاميرا على القاتل / الشريف
   shared.Roles:Divider()
@@ -3393,6 +3571,7 @@
     end)
     pcall(function() if aimLockGui then aimLockGui:Destroy() end end)
     pcall(function() if mapVoteGui then mapVoteGui:Destroy() end end)
+    pcall(function() if knifeAimOldNamecall and hookmetamethod then hookmetamethod(game, "__namecall", knifeAimOldNamecall) end end)
     for _, key in ipairs({"tabs", "Main", "Roles", "Target", "Visual", "Player", "Tracker", "Premium", "loaded", "done"}) do shared[key] = nil end
   end)
 
