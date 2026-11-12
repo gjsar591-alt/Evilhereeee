@@ -2320,6 +2320,105 @@
     else Window:Notify({Title = "HAVEN HUB", Description = "Map does not exist yet.", Duration = 5}) end
   end})
 
+  -- فحص نظام التصويت على المابات: يجمع معلومات اللوبي وينسخها (قراءة فقط، ما يغيّر شي في اللعبة)
+  local function ScanMapVote()
+    local lines, total = {}, 0
+    local function add(text) total = total + 1 if #lines < 500 then lines[#lines + 1] = text end end
+    local function matches(name)
+      local lower = string.lower(tostring(name))
+      return string.find(lower, "vote", 1, true) ~= nil or string.find(lower, "map", 1, true) ~= nil
+    end
+    local function describe(inst)
+      local extra = ""
+      pcall(function()
+        if inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox") then extra = extra .. ' Text="' .. string.sub(inst.Text, 1, 70) .. '"' end
+        if inst:IsA("ValueBase") then extra = extra .. " Value=" .. tostring(inst.Value) end
+        if inst:IsA("ImageLabel") or inst:IsA("ImageButton") then extra = extra .. " Image=" .. tostring(inst.Image) end
+        if inst:IsA("BasePart") then
+          extra = extra .. string.format(" Pos=(%d,%d,%d)", inst.Position.X, inst.Position.Y, inst.Position.Z)
+          if inst:FindFirstChildOfClass("TouchTransmitter") then extra = extra .. " [TOUCH]" end
+        end
+        if inst:IsA("ClickDetector") or inst:IsA("ProximityPrompt") then extra = extra .. " [INTERACT]" end
+        local attrs = inst:GetAttributes()
+        for key, value in pairs(attrs) do extra = extra .. " @" .. tostring(key) .. "=" .. tostring(value) end
+      end)
+      return inst.ClassName .. " | " .. inst:GetFullName() .. extra
+    end
+    local function dump(root, maxItems)
+      add(describe(root))
+      local count = 0
+      for _, desc in ipairs(root:GetDescendants()) do
+        count = count + 1
+        if count > maxItems then add("   ... (" .. (#root:GetDescendants() - maxItems) .. " more)") break end
+        add("   " .. describe(desc))
+      end
+    end
+
+    add("== HAVEN HUB MAP VOTE SCAN ==")
+    add("-- LOBBY OBJECTS (name has vote/map) --")
+    pcall(function()
+      for _, child in ipairs(workspace:GetChildren()) do
+        if string.find(string.lower(child.Name), "lobby", 1, true) then
+          add("Lobby root: " .. child.ClassName .. " | " .. child:GetFullName())
+          local seen = {}
+          for _, desc in ipairs(child:GetDescendants()) do
+            if matches(desc.Name) and not seen[desc] then
+              local nested = false
+              local parent = desc.Parent
+              while parent and parent ~= child do if seen[parent] then nested = true break end parent = parent.Parent end
+              if not nested then seen[desc] = true dump(desc, 80) end
+            end
+          end
+          add("-- LOBBY SIGN TEXTS --")
+          local texts = 0
+          for _, desc in ipairs(child:GetDescendants()) do
+            if texts >= 80 then break end
+            if desc:IsA("TextLabel") and desc.Text ~= "" and (desc:FindFirstAncestorWhichIsA("SurfaceGui") or desc:FindFirstAncestorWhichIsA("BillboardGui")) then
+              texts = texts + 1
+              add(describe(desc))
+            end
+          end
+        end
+      end
+    end)
+    add("-- WORKSPACE TOP LEVEL --")
+    pcall(function() for _, child in ipairs(workspace:GetChildren()) do add(child.ClassName .. " | " .. child.Name) end end)
+    add("-- REMOTES (name has vote/map) --")
+    pcall(function()
+      for _, desc in ipairs(ReplicatedStorage:GetDescendants()) do
+        if (desc:IsA("RemoteEvent") or desc:IsA("RemoteFunction") or desc:IsA("BindableEvent") or desc:IsA("BindableFunction")) and matches(desc.Name) then add(describe(desc)) end
+      end
+    end)
+    add("-- GAMEPLAY REMOTES --")
+    pcall(function()
+      local gameplay = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Gameplay")
+      if gameplay then for _, child in ipairs(gameplay:GetChildren()) do add(child.ClassName .. " | " .. child.Name) end end
+    end)
+    add("-- PLAYER GUI (name has vote/map) --")
+    pcall(function()
+      local seen = {}
+      for _, desc in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
+        if matches(desc.Name) and not seen[desc.Parent] then seen[desc] = true dump(desc, 40) end
+      end
+    end)
+    add("== END (" .. total .. " lines) ==")
+
+    local report = table.concat(lines, "\n")
+    local copied, saved = false, false
+    pcall(function() if setclipboard then setclipboard(report) copied = true elseif toclipboard then toclipboard(report) copied = true end end)
+    pcall(function() if writefile then writefile("HavenHub/mapvote_scan.txt", report) saved = true end end)
+    return total, copied, saved
+  end
+
+  shared.Main:Divider()
+  shared.Main:SubLabel({Text = "MAP VOTE"})
+  shared.Main:Button({Name = "Scan Map Vote (Copy Info)", Callback = function()
+    local total, copied, saved = ScanMapVote()
+    local where = (copied and "Copied to clipboard. " or "") .. (saved and "Saved to HavenHub/mapvote_scan.txt." or "")
+    if where == "" then where = "Your executor cannot copy or save files." end
+    Window:Notify({Title = "MAP VOTE SCAN", Description = "Collected " .. tostring(total) .. " lines. " .. where, Duration = 7})
+  end})
+
   -- قسم Target
   shared.Target:SubLabel({Text = "CHOSEN PLAYER"})
   local TargetDropdown = shared.Target:Dropdown({Name = "Choose Player", Search = true, Multi = false, Required = false, Options = {}, Default = {}, Callback = function() end}, "Target")
