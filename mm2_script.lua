@@ -2525,17 +2525,29 @@
     return fired
   end
 
-  -- الشريف (أو أي أحد معه المسدس): ينتقل للقاتل، يطلق عليه ويقتله، ويرجع
+  -- الشريف (أو أي أحد معه المسدس): يطلق على القاتل من مكانه من ورا الجدار (الطلقة تطلع من عند القاتل نفسه)
+  -- ولو طلقتين ما قتلته، ينتقل له ويطلق من قريب ويرجع
+  local wallShots = 0
   shared.Main:Toggle("ShootFullBag", "Shoot Murderer When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait(0.1)
         pcall(function()
-          if v14 and v14 ~= LocalPlayer.Name and HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
-            local murderer = Players:FindFirstChild(v14)
-            if murderer and IsPlayerAlive(murderer, roles) then
-              if TeleportShoot(murderer) then task.wait(0.4) end
-            end
+          local murderer = v14 and v14 ~= LocalPlayer.Name and Players:FindFirstChild(v14)
+          local mHum = murderer and murderer.Character and murderer.Character:FindFirstChildOfClass("Humanoid")
+          if not (mHum and mHum.Health > 0 and IsPlayerAlive(murderer, roles)) then wallShots = 0 return end
+          if not (HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles)) then return end
+          if IsGunReloading() then return end
+          local fired
+          if wallShots < 2 then
+            EquipTool("Gun")
+            task.wait(0.1) -- المسدس لازم يكون باليد قبل الطلقة
+            fired = ShootAtPlayer(murderer)
+            if fired then wallShots = wallShots + 1 end
+          else
+            fired = TeleportShoot(murderer)
           end
+          -- ننتظر الطلقة توصل قبل ما نحكم إنه لسا حي
+          if fired then task.wait(0.6) end
         end)
       until not Options.ShootFullBag:GetValue()
     end
