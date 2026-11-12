@@ -2498,26 +2498,68 @@
     return ok and alive
   end
 
-  -- أقرب منصة تنداس (أو شي ينضغط) عند لوحة الماب
-  local function FindVoteTrigger(root, board)
-    local best, bestScore = nil, math.huge
+  local function FlatDistance(a, b)
+    return (Vector3.new(a.X, 0, a.Z) - Vector3.new(b.X, 0, b.Z)).Magnitude
+  end
+
+  -- اتجاه وجه اللوحة (الجهة اللي عليها الكتابة) على الأرض
+  local function GetBoardFront(board)
+    local normal = nil
+    pcall(function()
+      if board.gui:IsA("SurfaceGui") and board.holder:IsA("BasePart") then
+        local world = board.holder.CFrame:VectorToWorldSpace(Vector3.FromNormalId(board.gui.Face))
+        local flat = Vector3.new(world.X, 0, world.Z)
+        if flat.Magnitude > 0.1 then normal = flat.Unit end
+      end
+    end)
+    return normal
+  end
+
+  -- النقطة اللي قدام لوحة الماب مباشرة (مكان الوقوف للتصويت)
+  local function GetStandPoint(board)
+    local normal = GetBoardFront(board)
+    if normal then return board.position + normal * 4, normal end
+    return board.position, nil
+  end
+
+  -- مكان التصويت: المنصة اللي قدام اللوحة مباشرة. نتجاهل المناطق الكبيرة والأشياء اللي ورا اللوحة أو تبع لوحة ثانية
+  local function FindVoteSpot(root, board)
+    local point, normal = GetStandPoint(board)
+    local best, bestDist = nil, math.huge
     for _, desc in ipairs(root:GetDescendants()) do
       local kind, part = nil, nil
       if desc:IsA("BasePart") and desc:FindFirstChildOfClass("TouchTransmitter") then kind, part = "touch", desc
       elseif desc:IsA("ClickDetector") and desc.Parent and desc.Parent:IsA("BasePart") then kind, part = "click", desc.Parent
       elseif desc:IsA("ProximityPrompt") and desc.Parent and desc.Parent:IsA("BasePart") then kind, part = "prompt", desc.Parent end
       if kind and not part:IsA("SpawnLocation") then
-        local dist = (part.Position - board.position).Magnitude
-        if dist <= 35 then
-          local names = string.lower(part.Name .. " " .. (part.Parent and part.Parent.Name or ""))
-          local score = dist
-          if string.find(names, "vote", 1, true) or string.find(names, "pad", 1, true) or string.find(names, "map", 1, true) then score = score - 15 end
-          if board.holder and part.Parent == board.holder.Parent then score = score - 15 end
-          if score < bestScore then bestScore = score best = {kind = kind, part = part, object = desc} end
+        local flat = FlatDistance(part.Position, point)
+        local tooBig = math.max(part.Size.X, part.Size.Z) > 30
+        local below = part.Position.Y <= board.position.Y + 1
+        local inFront = (not normal) or ((part.Position - board.position):Dot(normal) > -1.5)
+        if not tooBig and below and inFront and flat <= 12 and flat < bestDist then
+          local mine = true
+          for _, other in ipairs(MapVote.Boards) do
+            if other ~= board and FlatDistance(part.Position, (GetStandPoint(other))) < flat then mine = false end
+          end
+          if mine then bestDist = flat best = {kind = kind, part = part, object = desc} end
         end
       end
     end
-    return best
+    local stand
+    if best then
+      stand = best.part.Position + Vector3.new(0, best.part.Size.Y / 2 + 3, 0)
+    else
+      -- ما لقينا منصة: نوقف على الأرض قدام اللوحة مباشرة
+      stand = point
+      pcall(function()
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = {LocalPlayer.Character}
+        local hit = workspace:Raycast(point + Vector3.new(0, 4, 0), Vector3.new(0, -40, 0), params)
+        if hit then stand = hit.Position + Vector3.new(0, 3, 0) end
+      end)
+    end
+    return {stand = stand, trigger = best}
   end
 
   local function WaitForRoot(timeout)
@@ -2542,20 +2584,19 @@
   end
 
   local function CastOneVote(searchRoot, board, root)
-    local trigger = FindVoteTrigger(searchRoot, board)
-    if not trigger then return false end
-    if trigger.kind == "click" and fireclickdetector then
+    local spot = FindVoteSpot(searchRoot, board)
+    local trigger = spot.trigger
+    if trigger and trigger.kind == "click" and fireclickdetector then
       fireclickdetector(trigger.object)
-    elseif trigger.kind == "prompt" and fireproximityprompt then
+    elseif trigger and trigger.kind == "prompt" and fireproximityprompt then
       fireproximityprompt(trigger.object)
-    else
-      root.AssemblyLinearVelocity = Vector3.zero
-      root.CFrame = CFrame.new(trigger.part.Position + Vector3.new(0, trigger.part.Size.Y / 2 + 3, 0))
-      if firetouchinterest and trigger.kind == "touch" then
-        firetouchinterest(trigger.part, root, 0) task.wait(0.05) firetouchinterest(trigger.part, root, 1)
-      end
     end
-    return true
+    root.AssemblyLinearVelocity = Vector3.zero
+    root.CFrame = CFrame.new(spot.stand)
+    if trigger and trigger.kind == "touch" and firetouchinterest then
+      firetouchinterest(trigger.part, root, 0) task.wait(0.05) firetouchinterest(trigger.part, root, 1)
+    end
+    return spot
   end
 
   -- يصوّت للماب عدد مرات: تصويت -> ريسيت -> تصويت ...
@@ -2567,6 +2608,7 @@
     MapVote.Done = 0
     MapVote.Total = total
     local reason = nil
+    local startVotes = ParseVotes(board.votesLabel.Text)
     pcall(function()
       local searchRoot = GetLobbyRoot() or workspace
       for i = 1, total do
@@ -2576,9 +2618,13 @@
         local root = WaitForRoot(10)
         if not root then reason = "No character" break end
         local before = ParseVotes(board.votesLabel.Text)
-        if not CastOneVote(searchRoot, board, root) then reason = "No vote pad found" break end
+        local spot = CastOneVote(searchRoot, board, root)
+        -- نبقى واقفين في مكان التصويت لين ينحسب الصوت
         local started = os.clock()
-        repeat task.wait(0.05) until ParseVotes(board.votesLabel.Text) > before or os.clock() - started > 1.5 or MapVote.StopRequested
+        repeat
+          task.wait(0.05)
+          pcall(function() if root.Parent then root.AssemblyLinearVelocity = Vector3.zero root.CFrame = CFrame.new(spot.stand) end end)
+        until ParseVotes(board.votesLabel.Text) > before or os.clock() - started > 1.5 or MapVote.StopRequested
         MapVote.Done = i
         if i < total and not MapVote.StopRequested then
           MapVote.Status = "Respawning " .. i .. "/" .. total
@@ -2588,6 +2634,9 @@
     end)
     if MapVote.StopRequested and not reason then reason = "Stopped" end
     MapVote.Status = (reason and (reason .. "  +" .. MapVote.Done)) or ("Done  +" .. MapVote.Done)
+    local counted = 0
+    pcall(function() counted = ParseVotes(board.votesLabel.Text) - startVotes end)
+    if MapVote.Done > 0 and counted <= 0 and not reason then MapVote.Status = "No votes counted - press Scan Map Vote" end
     MapVote.Running = false
   end
 
