@@ -2626,6 +2626,21 @@
     end
   end)
 
+  -- مود الزومبي: أول ما تمتلي الشنطة يسوي ريسيت للشخصية (مرة وحدة، بعدها تصير ميت فما يعيد)
+  shared.Main:Toggle("ZombieResetFullBag", "Zombie Mode: Reset When Bag Is Full", function(arg1)
+    if arg1 then
+      repeat task.wait(0.3)
+        pcall(function()
+          local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+          if hum and hum.Health > 0 and IsZombieRound() and IsBagFull() and IsPlayerAlive(LocalPlayer, roles) then
+            hum.Health = 0
+            task.wait(3) -- ننتظر حالة اللاعب تتحدث قبل الفحص الجاي
+          end
+        end)
+      until not Options.ZombieResetFullBag:GetValue()
+    end
+  end)
+
   -- زومبي: ينتقل لكل ناجي (اللي ما معه سكين) ويطعنه عشان يتحول زومبي، واحد ورا الثاني
   shared.Main:Toggle("ZombieKillAll", "Zombie: Kill Survivors When Bag Is Full", function(arg1)
     if arg1 then
