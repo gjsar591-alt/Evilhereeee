@@ -2023,13 +2023,35 @@
     end
   end
 
+  -- الفارم من تحت الأرض: الشخصية تمشي تحت العملات وتلقطها من تحت
+  local farmIsUnderground = false
+  local function IsFarmUnderground()
+    return Options.FarmUnder ~= nil and Options.FarmUnder:GetValue()
+  end
+  local function GetUndergroundDepth()
+    return math.clamp(tonumber(Options.FarmUnderDepth and Options.FarmUnderDepth:GetValue()) or 4, 3, 6)
+  end
+  -- يرجّع الشخصية فوق الأرض (لما يتوقف الفارم) عشان ما تطيح من الماب
+  local function SurfaceFromUnderground()
+    if not farmIsUnderground then return end
+    farmIsUnderground = false
+    pcall(function()
+      local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+      if not root then return end
+      root.AssemblyLinearVelocity = Vector3.zero
+      root.CFrame = root.CFrame + Vector3.new(0, GetUndergroundDepth() + 4, 0)
+    end)
+  end
+
   CoinAttribute = function(coinPart, checkOnly)
     if not coinPart then return false end
     local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hum or not root or not hum.Parent.PrimaryPart then return false end
     local dist = (coinPart.Position - hum.Parent.PrimaryPart.Position).Magnitude
-    if dist <= 4 and shared.Premium then
+    -- من تحت الأرض نحتاج مدى أكبر شوي عشان نوصل للعملة اللي فوقنا
+    local reach = (farmIsUnderground and IsFarmUnderground()) and math.max(4, GetUndergroundDepth() + 0.75) or 4
+    if dist <= reach and shared.Premium then
       task.wait()
       if firetouchinterest then
         firetouchinterest(coinPart, root, 1) task.wait(0.1) firetouchinterest(coinPart, root, 0)
@@ -2169,15 +2191,18 @@
     local mag = (rootPart.Position - pos).Magnitude
     local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 40)
     local safe = IsFarmSafe()
+    local under = IsFarmUnderground()
+    local yOffset = under and -GetUndergroundDepth() or 1.5
     if not IsBagFull() and CoinAttribute(coin, true) then
       local cf = CFrame.new(pos.X, pos.Y, pos.Z)
+      if under then farmIsUnderground = true elseif farmIsUnderground then farmIsUnderground = false end
       if mag > 200 and not safe then
         rootPart.CFrame = cf * CFrame.new(0, 10, 0) task.wait(2)
-        TweenTo(cf * CFrame.new(0, 1.5, 0), 5000, false)
+        TweenTo(cf * CFrame.new(0, yOffset, 0), 5000, false)
       elseif Options.Mode:GetValue() == "Random Coins" then
-        TweenTo(cf * CFrame.new(0, 1.5, 0), math.min(speed, 22), true, true, coin, safe)
+        TweenTo(cf * CFrame.new(0, yOffset, 0), math.min(speed, 22), true, true, coin, safe)
       else
-        TweenTo(cf * CFrame.new(0, 1.5, 0), speed, false, false, nil, safe)
+        TweenTo(cf * CFrame.new(0, yOffset, 0), speed, false, false, nil, safe)
       end
     end
   end
@@ -2187,7 +2212,7 @@
       local char = LocalPlayer.Character
       local hum = char and char:FindFirstChild("Humanoid")
       local root = char and char:FindFirstChild("HumanoidRootPart")
-      if not v14 then DisableFloat() return end
+      if not v14 then farmIsUnderground = false DisableFloat() return end
 
       local function farmStep()
         if not Options.AutoFarm:GetValue() or not IsPlayerAlive(LocalPlayer, roles) or not root then return end
@@ -2258,6 +2283,7 @@
       end)
     end
     repeat task.wait() RunAutoFarm() until not Options.AutoFarm:GetValue()
+    SurfaceFromUnderground()
     if Noclipping then Noclipping:Disconnect() end
     DisableFloat()
   end)
@@ -2265,6 +2291,11 @@
   shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Closest Coins", "Closest + Reset", "Random Coins"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
   shared.Main:Slider("FarmSpeed", "Farm Speed", 16, 40, 26, "Percent", function() end)
   shared.Main:Toggle("FarmSafe", "Safe Farm (Anti-Kick)", {State = true}, function() end)
+  shared.Main:Toggle("FarmUnder", "Underground Farm", function(arg1)
+    -- لو طفّيته والفارم شغال: نطلع فوق الأرض مباشرة
+    if not arg1 then SurfaceFromUnderground() end
+  end)
+  shared.Main:Slider("FarmUnderDepth", "Underground Depth", 3, 6, 4, "Percent", function() end)
   shared.Main:Toggle("KillAllFullBag", "Kill Everyone When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait()
