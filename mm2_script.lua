@@ -2596,18 +2596,18 @@
   -- وضع الزومبي: الناجين معهم مسدسات والزومبي معهم سكاكين
   shared.Main:SubLabel({Text = "ZOMBIE MODE"})
 
-  -- ناجي: ينتقل لكل زومبي (الأقرب أول)، يطلق عليه من قريب، ينتظر إعادة التعبئة، ويكمل على اللي بعده لين يخلصون
+  -- ناجي: يسوي فلنق لكل الزومبي (اللي معهم سكين) واحد ورا الثاني، ويعيد على اللي باقي حي
   shared.Main:Toggle("ZombieShoot", "Survivor: Kill Zombies When Bag Is Full", function(arg1)
     if arg1 then
-      repeat task.wait(0.1)
+      repeat task.wait(0.3)
         pcall(function()
-          if not (HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles)) then return end
-          if IsGunReloading() then return end
-          local zombie = NearestPlayerWhere(function(p) return HasTool(p, "Knife") end)
-          if not zombie then return end
-          if TeleportShoot(zombie) then
-            -- ننتظر الطلقة توصل، ولو الزومبي لسا حي نرجع له بالدورة الجاية
-            task.wait(0.4)
+          for _, p in ipairs(Players:GetPlayers()) do
+            if not Options.ZombieShoot:GetValue() then return end
+            if not (HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles)) then return end
+            if p ~= LocalPlayer and HasTool(p, "Knife") and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and IsPlayerAlive(p, roles) then
+              FlingWithCollision(p)
+              task.wait(0.5)
+            end
           end
         end)
       until not Options.ZombieShoot:GetValue()
