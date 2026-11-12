@@ -2424,6 +2424,7 @@
         if inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox") then extra = extra .. ' Text="' .. string.sub(inst.Text, 1, 70) .. '"' end
         if inst:IsA("ValueBase") then extra = extra .. " Value=" .. tostring(inst.Value) end
         if inst:IsA("ImageLabel") or inst:IsA("ImageButton") then extra = extra .. " Image=" .. tostring(inst.Image) end
+        if inst:IsA("Decal") or inst:IsA("Texture") then extra = extra .. " Texture=" .. tostring(inst.Texture) end
         if inst:IsA("BasePart") then
           extra = extra .. string.format(" Pos=(%d,%d,%d)", inst.Position.X, inst.Position.Y, inst.Position.Z)
           if inst:FindFirstChildOfClass("TouchTransmitter") then extra = extra .. " [TOUCH]" end
@@ -2533,23 +2534,56 @@
     return nil
   end
 
-  -- صورة الماب من لوحته (لو موجودة)
-  local function FindBoardImage(gui, holder)
-    local image = nil
+  -- صور المابات: نجمع كل الصور الموجودة حول اللوحات (Decal / Texture / ImageLabel) ثم نعطي كل لوحة أقرب صورة لها.
+  -- الصور المتكررة (خشب، إطارات...) تتأخر في الترتيب لأن صورة الماب تكون فريدة.
+  local function AssignBoardImages(root, boards)
+    if #boards == 0 then return end
+    local candidates, uses = {}, {}
+    local function addCandidate(image, part, info)
+      if type(image) ~= "string" or image == "" or not part or not part:IsA("BasePart") then return end
+      info = info or {}
+      info.image = image
+      info.position = part.Position
+      info.size = math.max(part.Size.X, part.Size.Y, part.Size.Z)
+      uses[image] = (uses[image] or 0) + 1
+      table.insert(candidates, info)
+    end
     pcall(function()
-      for _, desc in ipairs(gui:GetDescendants()) do
-        if (desc:IsA("ImageLabel") or desc:IsA("ImageButton")) and desc.Image ~= "" then image = desc.Image return end
-      end
-      local model = holder and holder.Parent
-      if not model or model == workspace then return end
-      local descendants = model:GetDescendants()
-      if #descendants > 80 then return end
-      for _, desc in ipairs(descendants) do
-        if (desc:IsA("ImageLabel") or desc:IsA("ImageButton")) and desc.Image ~= "" then image = desc.Image return end
-        if (desc:IsA("Decal") or desc:IsA("Texture")) and desc.Texture ~= "" then image = desc.Texture return end
+      for _, desc in ipairs(root:GetDescendants()) do
+        if desc:IsA("Decal") or desc:IsA("Texture") then
+          addCandidate(desc.Texture, desc.Parent)
+        elseif desc:IsA("ImageLabel") or desc:IsA("ImageButton") then
+          local gui = desc:FindFirstAncestorWhichIsA("SurfaceGui") or desc:FindFirstAncestorWhichIsA("BillboardGui")
+          local holder = gui and (gui.Adornee or gui.Parent)
+          if holder then
+            local info = {}
+            pcall(function() info.rectOffset = desc.ImageRectOffset info.rectSize = desc.ImageRectSize end)
+            addCandidate(desc.Image, holder, info)
+          end
+        end
       end
     end)
-    return image
+    for _, board in ipairs(boards) do
+      local best, bestScore = nil, math.huge
+      for _, candidate in ipairs(candidates) do
+        local dist = (candidate.position - board.position).Magnitude
+        if dist <= 16 and candidate.size >= 2 then
+          local mine = true
+          for _, other in ipairs(boards) do
+            if other ~= board and (candidate.position - other.position).Magnitude < dist then mine = false end
+          end
+          if mine then
+            local score = dist + ((uses[candidate.image] > 1) and 100 or 0)
+            if score < bestScore then bestScore = score best = candidate end
+          end
+        end
+      end
+      if best and bestScore < 100 then
+        board.image = best.image
+        board.imageRectOffset = best.rectOffset
+        board.imageRectSize = best.rectSize
+      end
+    end
   end
 
   -- يدوّر على لوحات التصويت: أي لوحة فيها نص "Votes: N" ومعه اسم الماب
@@ -2573,11 +2607,12 @@
       name = string.gsub(string.gsub(name, "^%s+", ""), "%s+$", "")
       if name == "" or seen[name] then return end
       seen[name] = true
-      table.insert(boards, {name = name, votesLabel = label, gui = gui, holder = holder, position = position, image = FindBoardImage(gui, holder)})
+      table.insert(boards, {name = name, votesLabel = label, gui = gui, holder = holder, position = position})
     end
     pcall(function() for _, desc in ipairs(root:GetDescendants()) do consider(desc, false) end end)
     pcall(function() for _, desc in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do consider(desc, true) end end)
     table.sort(boards, function(a, b) return a.name < b.name end)
+    pcall(AssignBoardImages, root, boards)
     return boards
   end
 
@@ -2872,11 +2907,18 @@
         Round(frame, UDim.new(0, 10))
         local stroke = Make("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = RED, Thickness = 2, Transparency = 1}, frame)
         if board.image then
-          Round(Make("ImageLabel", {BackgroundTransparency = 1, Image = board.image, ScaleType = Enum.ScaleType.Crop, Size = UDim2.fromScale(1, 1)}, frame), UDim.new(0, 10))
+          local picture = Make("ImageLabel", {Name = "MapImage", AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, BorderSizePixel = 0, Image = board.image, Position = UDim2.fromScale(0.5, 0.5), ScaleType = Enum.ScaleType.Crop, Size = UDim2.fromScale(1, 1)}, frame)
+          Round(picture, UDim.new(0, 10))
+          pcall(function()
+            if board.imageRectSize and (board.imageRectSize.X > 0 or board.imageRectSize.Y > 0) then
+              picture.ImageRectOffset = board.imageRectOffset
+              picture.ImageRectSize = board.imageRectSize
+            end
+          end)
         end
         local shade = Make("Frame", {BackgroundColor3 = Color3.fromRGB(0, 0, 0), BorderSizePixel = 0, Size = UDim2.fromScale(1, 1)}, frame)
         Round(shade, UDim.new(0, 10))
-        Make("UIGradient", {Rotation = 90, Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.85), NumberSequenceKeypoint.new(0.5, 0.6), NumberSequenceKeypoint.new(1, 0.1)})}, shade)
+        Make("UIGradient", {Rotation = 90, Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, board.image and 1 or 0.85), NumberSequenceKeypoint.new(0.45, board.image and 0.85 or 0.6), NumberSequenceKeypoint.new(1, 0.08)})}, shade)
         local badge = Make("Frame", {AnchorPoint = Vector2.new(1, 0), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.35, BorderSizePixel = 0, Position = UDim2.new(1, -8, 0, 8), Size = UDim2.fromOffset(40, 24)}, frame)
         Round(badge)
         local votes = Text({Size = UDim2.fromScale(1, 1), Text = "0", TextSize = 12}, badge, Enum.FontWeight.Bold)
@@ -2909,7 +2951,7 @@
             lastScan = os.clock()
             MapVote.Boards = DetectVoteBoards(GetLobbyRoot() or workspace)
             local names = {}
-            for _, board in ipairs(MapVote.Boards) do table.insert(names, board.name) end
+            for _, board in ipairs(MapVote.Boards) do table.insert(names, board.name .. "=" .. tostring(board.image or "")) end
             local key = table.concat(names, "|")
             if key ~= cardsKey then
               cardsKey = key
