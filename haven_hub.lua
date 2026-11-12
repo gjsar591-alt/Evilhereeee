@@ -2023,14 +2023,9 @@
     end
   end
 
-  -- الفارم من تحت الأرض: الشخصية تمشي تحت العملات وتلقطها من تحت
+  -- الأوتو فارم كله من تحت الأرض: الشخصية تمشي تحت العملات وتلقطها من تحت
+  local FARM_DEPTH = 4 -- كم تنزل الشخصية تحت العملة
   local farmIsUnderground = false
-  local function IsFarmUnderground()
-    return Options.FarmUnder ~= nil and Options.FarmUnder:GetValue()
-  end
-  local function GetUndergroundDepth()
-    return math.clamp(tonumber(Options.FarmUnderDepth and Options.FarmUnderDepth:GetValue()) or 4, 3, 6)
-  end
   -- يرجّع الشخصية فوق الأرض (لما يتوقف الفارم) عشان ما تطيح من الماب
   local function SurfaceFromUnderground()
     if not farmIsUnderground then return end
@@ -2039,7 +2034,7 @@
       local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
       if not root then return end
       root.AssemblyLinearVelocity = Vector3.zero
-      root.CFrame = root.CFrame + Vector3.new(0, GetUndergroundDepth() + 4, 0)
+      root.CFrame = root.CFrame + Vector3.new(0, FARM_DEPTH + 4, 0)
     end)
   end
 
@@ -2050,7 +2045,7 @@
     if not hum or not root or not hum.Parent.PrimaryPart then return false end
     local dist = (coinPart.Position - hum.Parent.PrimaryPart.Position).Magnitude
     -- من تحت الأرض نحتاج مدى أكبر شوي عشان نوصل للعملة اللي فوقنا
-    local reach = (farmIsUnderground and IsFarmUnderground()) and math.max(4, GetUndergroundDepth() + 0.75) or 4
+    local reach = farmIsUnderground and math.max(4, FARM_DEPTH + 0.75) or 4
     if dist <= reach and shared.Premium then
       task.wait()
       if firetouchinterest then
@@ -2194,25 +2189,7 @@
     if root and root:FindFirstChild("BodyVelocity") then root.BodyVelocity:Destroy() end
   end
 
-  -- الوضع الآمن: بدون أي انتقال فوري لمسافات بعيدة
-  local function IsFarmSafe()
-    return (Options.FarmSafe == nil) or Options.FarmSafe:GetValue()
-  end
 
-  local function ResetOrLobby()
-    pcall(function()
-      if Options.Mode:GetValue() == "Closest + Reset" then LocalPlayer.Character.Humanoid.Health = 0 return end
-      -- في الوضع الآمن ما ننتقل للّوبي فوراً لما تمتلي الشنطة، نبقى مكاننا لين تخلص الجولة
-      if IsFarmSafe() then return end
-      for _, child in pairs(workspace:GetChildren()) do
-        if (child:IsA("Model") or child:IsA("Folder")) and string.find(string.lower(child.Name), "lobby") then
-          for _, desc in pairs(child:GetDescendants()) do
-            if desc:IsA("SpawnLocation") then TweenTo(CFrame.new(desc.Position + Vector3.new(0, 5, 0)), 5000) return end
-          end
-        end
-      end
-    end)
-  end
 
   local function FindCoin(rootPart, mode)
     local container = GetMapElement("CoinContainer")
@@ -2239,24 +2216,13 @@
     return nil
   end
 
+  -- يتحرك تحت العملة بسرعة ثابتة (من سلايدر Farm Speed) بدون أي انتقال فوري
   local function MoveToCoin(coin, rootPart)
     local pos = coin.CoinVisual.Position
-    local mag = (rootPart.Position - pos).Magnitude
     local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 40)
-    local safe = IsFarmSafe()
-    local under = IsFarmUnderground()
-    local yOffset = under and -GetUndergroundDepth() or 1.5
     if not IsBagFull() and CoinAttribute(coin, true) then
-      local cf = CFrame.new(pos.X, pos.Y, pos.Z)
-      if under then farmIsUnderground = true elseif farmIsUnderground then farmIsUnderground = false end
-      if mag > 200 and not safe then
-        rootPart.CFrame = cf * CFrame.new(0, 10, 0) task.wait(2)
-        TweenTo(cf * CFrame.new(0, yOffset, 0), 5000, false)
-      elseif Options.Mode:GetValue() == "Random Coins" then
-        TweenTo(cf * CFrame.new(0, yOffset, 0), math.min(speed, 22), true, true, coin, safe)
-      else
-        TweenTo(cf * CFrame.new(0, yOffset, 0), speed, false, false, nil, safe)
-      end
+      farmIsUnderground = true
+      TweenTo(CFrame.new(pos.X, pos.Y - FARM_DEPTH, pos.Z), speed, false, false, nil, true)
     end
   end
 
@@ -2270,20 +2236,12 @@
 
       local function farmStep()
         if not Options.AutoFarm:GetValue() or not IsPlayerAlive(LocalPlayer, roles) or not root then return end
-        local mode = (Options.Mode:GetValue() == "Closest + Reset" or Options.Mode:GetValue() == "Closest Coins") and "closest" or "random"
-        local coin = FindCoin(root, mode)
+        local coin = FindCoin(root, "closest")
         if coin and v18 ~= coin then EnableFloat() MoveToCoin(coin, root) v18 = coin end
       end
 
       if not IsBagFull() or not root or not hum or hum.Health <= 0 or not IsPlayerAlive(LocalPlayer, roles) then farmFullHandled = false farmStep() return end
-      -- الشنطة امتلت.
-      -- وضع Closest + Reset: يسوي ريسيت للشخصية مثل ما كان. نخليه لين يرجع بشخصية جديدة ثم نكمل الفحص
-      if Options.Mode:GetValue() == "Closest + Reset" then
-        farmFullHandled = false
-        hum.Health = 0
-        return
-      end
-      -- باقي الأوضاع: نوقف الفارم في مكانه لين الجولة الجاية
+      -- الشنطة امتلت: نوقف الفارم في مكانه (تحت الأرض) لين الجولة الجاية
       if not farmFullHandled then
         farmFullHandled = true
         v18 = nil
@@ -2354,14 +2312,7 @@
     DisableFloat()
   end)
 
-  shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Closest Coins", "Closest + Reset", "Random Coins"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
   shared.Main:Slider("FarmSpeed", "Farm Speed", 16, 40, 26, "Percent", function() end)
-  shared.Main:Toggle("FarmSafe", "Safe Farm (Anti-Kick)", {State = true}, function() end)
-  shared.Main:Toggle("FarmUnder", "Underground Farm", function(arg1)
-    -- لو طفّيته والفارم شغال: نطلع فوق الأرض مباشرة
-    if not arg1 then SurfaceFromUnderground() end
-  end)
-  shared.Main:Slider("FarmUnderDepth", "Underground Depth", 3, 6, 4, "Percent", function() end)
   -- ==========================================================================
   -- أوامر الشنطة الممتلئة: تشتغل أول ما توصل الشنطة 50 أو تصير FULL، حسب دورك في الجولة
   -- ==========================================================================
