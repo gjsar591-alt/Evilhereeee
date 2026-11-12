@@ -2064,7 +2064,59 @@
     return checkOnly == true
   end
 
+  -- حالة شنطة العملات: اللعبة ترسل (نوع العملة، العدد الحالي، الحد الأقصى) مع كل عملة تنلقط
+  local bagCounts = {}                              -- [نوع العملة] = {current, max, lastGain}
+  local bagGui = {time = -math.huge, full = false}  -- فحص كلمة FULL في واجهة اللعبة (احتياطي)
+  pcall(function()
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    local gameplay = remotes and remotes:FindFirstChild("Gameplay")
+    local collected = gameplay and gameplay:FindFirstChild("CoinCollected")
+    if not collected then return end
+    table.insert(HavenConnections, collected.OnClientEvent:Connect(function(coinType, current, max)
+      current, max = tonumber(current), tonumber(max)
+      if coinType == nil or not current then return end
+      local bag = bagCounts[coinType] or {current = 0, lastGain = os.clock()}
+      if current > bag.current then bag.lastGain = os.clock() end
+      bag.current = current
+      if max and max > 0 then bag.max = max end
+      bagCounts[coinType] = bag
+    end))
+  end)
+  local function ResetBagState()
+    for key in pairs(bagCounts) do bagCounts[key] = nil end
+    bagGui.full = false
+    bagGui.time = -math.huge
+  end
+
   local function IsBagFull()
+    -- 1) من أرقام اللعبة نفسها
+    for _, bag in pairs(bagCounts) do
+      if bag.max and bag.current >= bag.max then return true end
+      -- بدون حد أقصى معروف: وصلنا 40+ وما زاد العدد من 10 ثواني والفارم شغال = ممتلئة
+      if not bag.max and bag.current >= 40 and os.clock() - bag.lastGain > 10 and Options.AutoFarm and Options.AutoFarm:GetValue() then return true end
+    end
+    -- 2) كلمة FULL الظاهرة على شنطة العملات في واجهة اللعبة (نفحصها مرتين بالثانية)
+    if os.clock() - bagGui.time > 0.5 then
+      bagGui.time = os.clock()
+      bagGui.full = false
+      pcall(function()
+        local main = LocalPlayer.PlayerGui:FindFirstChild("MainGUI")
+        local bags = main and main:FindFirstChild("CoinBags", true)
+        if not bags then return end
+        for _, desc in ipairs(bags:GetDescendants()) do
+          if desc:IsA("TextLabel") and desc.Visible and string.lower(desc.Text) == "full" then
+            local shown, parent = true, desc.Parent
+            while parent and parent ~= bags do
+              if parent:IsA("GuiObject") and not parent.Visible then shown = false break end
+              parent = parent.Parent
+            end
+            if shown then bagGui.full = true return end
+          end
+        end
+      end)
+    end
+    if bagGui.full then return true end
+    -- 3) الطريقة الأصلية
     if not roles then return false end
     local elite = LocalPlayer:GetAttribute("Elite")
     local coins = tonumber(roles.Coins) or 0
@@ -2207,12 +2259,13 @@
     end
   end
 
+  local farmFullHandled = false
   local function RunAutoFarm()
     pcall(function()
       local char = LocalPlayer.Character
       local hum = char and char:FindFirstChild("Humanoid")
       local root = char and char:FindFirstChild("HumanoidRootPart")
-      if not v14 then farmIsUnderground = false DisableFloat() return end
+      if not v14 then farmIsUnderground = false farmFullHandled = false DisableFloat() return end
 
       local function farmStep()
         if not Options.AutoFarm:GetValue() or not IsPlayerAlive(LocalPlayer, roles) or not root then return end
@@ -2221,7 +2274,18 @@
         if coin and v18 ~= coin then EnableFloat() MoveToCoin(coin, root) v18 = coin end
       end
 
-      if not IsBagFull() or not root or not hum or hum.Health <= 0 or not IsPlayerAlive(LocalPlayer, roles) then farmStep() return end
+      if not IsBagFull() or not root or not hum or hum.Health <= 0 or not IsPlayerAlive(LocalPlayer, roles) then farmFullHandled = false farmStep() return end
+      -- الشنطة امتلت: نوقف الفارم في مكانه لين الجولة الجاية
+      if Options.FarmStopFull == nil or Options.FarmStopFull:GetValue() then
+        if not farmFullHandled then
+          farmFullHandled = true
+          v18 = nil
+          root.AssemblyLinearVelocity = Vector3.zero
+          TweenService:Create(root, TweenInfo.new(0.05), {CFrame = root.CFrame}):Play() -- يوقف أي حركة شغالة
+          Window:Notify({Title = "AUTO FARM", Description = "Bag is full. Farm paused until the next round.", Duration = 5})
+        end
+        return
+      end
       if Options.KillAll:GetValue() or Options.KillM:GetValue() or Options.AutoShoot:GetValue() then
         if v14 == LocalPlayer.Name or v15 == LocalPlayer.Name then farmStep() else ResetOrLobby() end
       else ResetOrLobby() end
@@ -2291,6 +2355,7 @@
   shared.Main:Dropdown({Name = "Farm Mode", Multi = false, Required = true, Options = {"Closest Coins", "Closest + Reset", "Random Coins"}, Default = 2, Callback = function() DisableFloat() end}, "Mode")
   shared.Main:Slider("FarmSpeed", "Farm Speed", 16, 40, 26, "Percent", function() end)
   shared.Main:Toggle("FarmSafe", "Safe Farm (Anti-Kick)", {State = true}, function() end)
+  shared.Main:Toggle("FarmStopFull", "Stop Farm When Bag Is Full", {State = true}, function() end)
   shared.Main:Toggle("FarmUnder", "Underground Farm", function(arg1)
     -- لو طفّيته والفارم شغال: نطلع فوق الأرض مباشرة
     if not arg1 then SurfaceFromUnderground() end
@@ -3731,6 +3796,8 @@
       pcall(function()
         v14 = FindPlayerWithTool("Knife")
         v15 = FindPlayerWithTool("Gun")
+        -- بين الجولات (ما أحد معه سكين أو مسدس) نصفّر حالة الشنطة
+        if not v14 and not v15 then ResetBagState() end
         -- طلب بيانات اللاعبين من السيرفر مرتين بالثانية بدل عشر مرات (الطلبات الكثيرة ممكن تسبب طرد)
         if os.clock() - lastRolesRequest >= 0.5 then
           lastRolesRequest = os.clock()
