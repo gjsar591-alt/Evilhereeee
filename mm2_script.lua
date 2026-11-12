@@ -2543,18 +2543,11 @@
   shared.Main:SubLabel({Text = "ZOMBIE MODE"})
 
   -- ناجي: ينتقل لكل زومبي (الأقرب أول)، يطلق عليه من قريب، ينتظر إعادة التعبئة، ويكمل على اللي بعده لين يخلصون
-  local wasSurvivor = false -- كنت ناجي بهالجولة؟ عشان لو تحولت زومبي تقتل الناجين بدون انتظار الحقيبة
   shared.Main:Toggle("ZombieShoot", "Survivor: Kill Zombies When Bag Is Full", function(arg1)
     if arg1 then
       repeat task.wait(0.1)
         pcall(function()
-          local alive = IsPlayerAlive(LocalPlayer, roles)
-          if HasTool(LocalPlayer, "Gun") then wasSurvivor = true
-          elseif HasTool(LocalPlayer, "Knife") then
-            if wasSurvivor and alive and StabPlayersWhere(function(p) return not HasTool(p, "Knife") end) > 0 then task.wait(0.5) end
-            return
-          elseif not alive then wasSurvivor = false end
-          if not (HasTool(LocalPlayer, "Gun") and IsBagFull() and alive) then return end
+          if not (HasTool(LocalPlayer, "Gun") and IsBagFull() and IsPlayerAlive(LocalPlayer, roles)) then return end
           if IsGunReloading() then return end
           local zombie = NearestPlayerWhere(function(p) return HasTool(p, "Knife") end)
           if not zombie then return end
