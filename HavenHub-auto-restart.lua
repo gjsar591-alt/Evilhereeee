@@ -3724,7 +3724,7 @@ local HavenOK, HavenErr = pcall(function()
 
   shared.Main:Divider()
   shared.Main:SubLabel({Text = "MAP VOTE"})
-  shared.Main:Toggle("MapVotePanel", "Show Map Vote Panel", {State = true}, function() end)
+  shared.Main:Toggle("MapVotePanel", "Show Map Vote Panel", {State = false}, function() end)
   shared.Main:Button({Name = "Scan Map Vote (Copy Info)", Callback = function()
     local total, copied, saved = ScanMapVote()
     local where = (copied and "Copied to clipboard. " or "") .. (saved and "Saved to HavenHub/mapvote_scan.txt." or "")
@@ -4104,7 +4104,7 @@ local HavenOK, HavenErr = pcall(function()
     for _, w in ipairs(END_WORDS) do if string.find(name, w, 1, true) then return true end end
     return false
   end
-  shared.Visual:Toggle("HideEndScreens", "Hide End-Of-Round Screens", {State = true}, function(arg1)
+  shared.Visual:Toggle("HideEndScreens", "Hide End-Of-Round Screens", {State = false}, function(arg1)
     if not arg1 then return end
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local conns, tracked, windowHidden = {}, {}, {}
@@ -4381,7 +4381,7 @@ local HavenOK, HavenErr = pcall(function()
     end
   end)
   shared.Roles:Dropdown({Name = "Knife Aim Target", Multi = false, Required = true, Options = {"Nearest Player", "Sheriff", "Innocent", "Murderer"}, Default = 1, Callback = function() end}, "KnifeAimTarget")
-  shared.Roles:Toggle("KnifeAimButton", "Show Knife Aim Button", {State = true}, function() end)
+  shared.Roles:Toggle("KnifeAimButton", "Show Knife Aim Button", {State = false}, function() end)
   local KnifeAimKeybind = shared.Roles:Keybind("KnifeAimKey", "Knife Aim Hotkey", function() HavenLib.PlaySound("toggle") Options.KnifeAim:Toggle() end)
   KnifeAimKeybind:Bind(Enum.KeyCode.Z) -- مفتاح افتراضي، تقدر تغيّره من الواجهة
 
@@ -4644,7 +4644,7 @@ local HavenOK, HavenErr = pcall(function()
   -- تفعيل اللوك بسرعة: زر عائم على الشاشة + مفتاح اختصار
   local AimLockKeybind = shared.Roles:Keybind("AimLockKey", "Aim Lock Hotkey", function() HavenLib.PlaySound("toggle") Options.AimLock:Toggle() end)
   AimLockKeybind:Bind(Enum.KeyCode.X) -- مفتاح افتراضي، تقدر تغيّره من الواجهة
-  shared.Roles:Toggle("AimLockButton", "Show Aim Lock Button", {State = true}, function() end)
+  shared.Roles:Toggle("AimLockButton", "Show Aim Lock Button", {State = false}, function() end)
 
   -- زر عائم على الشاشة يشغّل/يطفّي خيار (toggleId)، ويظهر حسب خيار (showId)
   local function MakeFloatButton(guiName, label, offsetY, toggleId, showId)
@@ -5249,7 +5249,7 @@ local HavenOK, HavenErr = pcall(function()
       Tell("SERVER ID", id .. (copied and " (copied)" or ""))
     end})
     rejoinSection:Toggle("AutoRejoinKick", "Auto Rejoin When Kicked", {State = true})
-    rejoinSection:Toggle("AutoHopEmpty", "Hop When Server Is Empty", {State = true})
+    rejoinSection:Toggle("AutoHopEmpty", "Hop When Server Is Empty", {State = false})
     rejoinSection:Slider("HopPlayerLimit", "Hop When Players Are", 1, 6, 1)
     rejoinSection:Button({Name = "Rejoin Now", Callback = function() HavenRejoin:Rejoin("button") end})
     rejoinSection:Button({Name = "Hop To Another Server", Callback = function() HavenRejoin:Hop("Manual server hop") end})
