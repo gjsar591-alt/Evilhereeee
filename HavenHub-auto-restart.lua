@@ -5051,6 +5051,8 @@ local HavenOK, HavenErr = pcall(function()
     local Srv = {
       Path = "HavenHub/self.lua",
       Mark = "HavenHubStartedJob", -- بصمة تميز سورس هذا السكربت عن أي ملف ثاني
+      -- نسخة السكربت المرفوعة: نجيبها لو المنفذ ما سمح لنا نقرا سورس أنفسنا (بدّل الرابط لو نقلت الملف)
+      Url = "https://raw.githubusercontent.com/gjsar591-alt/Evilhereeee/claude/fervent-volta-w64bf7/HavenHub-auto-restart.lua",
       FileOK = type(writefile) == "function" and type(readfile) == "function" and type(isfile) == "function"
     }
 
@@ -5100,18 +5102,20 @@ local HavenOK, HavenErr = pcall(function()
           end
         end
       end
-      return false
+      -- 4) ما نفعت أي طريقة: ننزّل النسخة المرفوعة ونحفظها، وبعدها الريجوين يصير من الملف المحلي
+      return Srv.Store(HttpGet(Srv.Url)) ~= nil
     end
     task.spawn(Srv.Capture) -- أول ما يشتغل السكربت: نجهز النسخة قبل أي ريجوين
 
     -- سطر تشغيل السكربت بعد الريجوين: من النسخة اللي حفظها السكربت عن نفسه
     local function GetLoader()
       -- HavenHubSource ينحفظ بالبيئة عشان النسخة الجديدة تقدر تنسخ نفسها بدورها (ريجوين بعد ريجوين)
-      if Srv.Capture() then
+      if Srv.Saved() then
         return 'local e = (getgenv and getgenv() or _G) local f = readfile("' .. Srv.Path
           .. '") e.HavenHubSource = f loadstring(f)()'
       end
-      return nil
+      -- ما فيه نسخة محفوظة (المنفذ بلا ملفات): نشغلها من الرابط مباشرة
+      return 'local s = game:HttpGet("' .. Srv.Url .. '") local e = (getgenv and getgenv() or _G) e.HavenHubSource = s loadstring(s)()'
     end
 
     -- الحالة تنتقل جوّا نص الـ queue نفسه: لا ملف جديد ولا متغير يبقى بالذاكرة
@@ -5301,8 +5305,6 @@ local HavenOK, HavenErr = pcall(function()
     task.delay(8, function()
       if not QueueFn then
         Tell("REJOIN", "This executor has no queue_on_teleport, so the script cannot restart itself after a rejoin.")
-      elseif not GetLoader() then
-        Tell("REJOIN", "This executor would not let the script save a copy of itself, so it will not come back after a rejoin.")
       end
     end)
   end
