@@ -3724,7 +3724,7 @@ local HavenOK, HavenErr = pcall(function()
 
   shared.Main:Divider()
   shared.Main:SubLabel({Text = "MAP VOTE"})
-  shared.Main:Toggle("MapVotePanel", "Show Map Vote Panel", {State = false}, function() end)
+  shared.Main:Toggle("MapVotePanel", "Show Map Vote Panel", {State = true}, function() end)
   shared.Main:Button({Name = "Scan Map Vote (Copy Info)", Callback = function()
     local total, copied, saved = ScanMapVote()
     local where = (copied and "Copied to clipboard. " or "") .. (saved and "Saved to HavenHub/mapvote_scan.txt." or "")
