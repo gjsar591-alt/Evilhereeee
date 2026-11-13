@@ -281,8 +281,9 @@
 
     local function Create(className, props, children)
       local inst = Instance.new(className)
+      -- pcall لكل خاصية: نسخ Roblox القديمة (جوال/محاكي) ما تعرف كل الخصائص، فنتجاهل اللي ما تنفع بدل ما تطيح الواجهة
       for k, v in pairs(props or {}) do
-        if k ~= "Parent" then inst[k] = v end
+        if k ~= "Parent" then pcall(function() inst[k] = v end) end
       end
       for _, child in ipairs(children or {}) do
         child.Parent = inst
@@ -589,7 +590,7 @@
       local windowSize = Settings.Size or UDim2.fromOffset(620, 480)
       local RAIL_W, HEADER_H = 68, 54
 
-      local screenGui = Create("ScreenGui", {Name = "HavenHubUI", ResetOnSpawn = false, DisplayOrder = 100, IgnoreGuiInset = true, ScreenInsets = Enum.ScreenInsets.None, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
+      local screenGui = Create("ScreenGui", {Name = "HavenHubUI", ResetOnSpawn = false, DisplayOrder = 100, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
       SafeParentGui(screenGui)
       soundParent = screenGui
       local notifications = Create("Frame", {Name = "Notifications", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 20, Parent = screenGui}, {
@@ -1353,6 +1354,19 @@
         local cStroke = Create("UIStroke", {Thickness = 2, Transparency = 0.1, Color = Color3.fromRGB(255, 255, 255), ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = cBtn})
         Create("UIGradient", {Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Theme.Accent), ColorSequenceKeypoint.new(1, Theme.AccentSecondary)}), Parent = cStroke})
         local bDrag, bMoved, bStart, bPos = false, false, nil, nil
+        -- الجوال: لو انقلبت الشاشة أو صغرت، الزر المسحوب يقدر يطلع برا الشاشة ويضيع، فنرجّعه لمكانه
+        local function KeepOnScreen()
+          pcall(function()
+            local vp = workspace.CurrentCamera.ViewportSize
+            local p, sz = cBtn.AbsolutePosition, cBtn.AbsoluteSize
+            if p.X < 0 or p.Y < 0 or p.X + sz.X > vp.X or p.Y + sz.Y > vp.Y then
+              cBtn.Position = UDim2.new(1, -20, 0.5, 0)
+            end
+          end)
+        end
+        pcall(function()
+          table.insert(HavenConnections, workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(KeepOnScreen))
+        end)
         cBtn.InputBegan:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then bStart = inp.Position bPos = cBtn.Position bDrag = false bMoved = false end end)
         UserInputService.InputChanged:Connect(function(inp)
           if bStart and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
@@ -1361,7 +1375,7 @@
             if bDrag then cBtn.Position = UDim2.new(bPos.X.Scale, bPos.X.Offset + delta.X, bPos.Y.Scale, bPos.Y.Offset + delta.Y) end
           end
         end)
-        UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then bStart = nil bDrag = false end end)
+        UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then bStart = nil bDrag = false if bMoved then KeepOnScreen() end end end)
         cBtn.Activated:Connect(function() if not bMoved then PlaySound("click") WindowFunctions:SetState(not WindowFunctions:GetState()) end end)
       end)
 
@@ -1834,7 +1848,7 @@
 
     local function New(className, props, parent)
       local inst = Instance.new(className)
-      for k, v in pairs(props) do inst[k] = v end
+      for k, v in pairs(props) do pcall(function() inst[k] = v end) end
       inst.Parent = parent
       return inst
     end
@@ -3665,7 +3679,7 @@
     local FONT_ID = "rbxassetid://12187365364"
     local function Make(className, props, parent)
       local inst = Instance.new(className)
-      for k, v in pairs(props or {}) do inst[k] = v end
+      for k, v in pairs(props or {}) do pcall(function() inst[k] = v end) end
       inst.Parent = parent
       return inst
     end
