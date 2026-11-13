@@ -4989,40 +4989,43 @@
 
     -- ====== نسخة السكربت عن نفسه ======
     -- السكربت ينسخ سورسه لملف مرة واحدة، وبعد الريجوين يشتغل من الملف نفسه بدون أي رابط
-    local SelfPath = "HavenHub/self.lua"
-    local SelfMark = "HavenHubStartedJob" -- بصمة تميز سورس هذا السكربت عن أي ملف ثاني
-    local FileOK = type(writefile) == "function" and type(readfile) == "function" and type(isfile) == "function"
+    -- (كل شي بجدول واحد: السكربت كله دالة وحدة والمتغيرات المنفصلة لها حد في Luau)
+    local Srv = {
+      Path = "HavenHub/self.lua",
+      Mark = "HavenHubStartedJob", -- بصمة تميز سورس هذا السكربت عن أي ملف ثاني
+      FileOK = type(writefile) == "function" and type(readfile) == "function" and type(isfile) == "function"
+    }
 
-    local function SavedSelf()
-      if not FileOK then return nil end
-      local ok, body = pcall(function() return isfile(SelfPath) and readfile(SelfPath) or nil end)
-      if ok and type(body) == "string" and #body > 10000 and body:find(SelfMark, 1, true) then return body end
+    function Srv.Saved()
+      if not Srv.FileOK then return nil end
+      local ok, body = pcall(function() return isfile(Srv.Path) and readfile(Srv.Path) or nil end)
+      if ok and type(body) == "string" and #body > 10000 and body:find(Srv.Mark, 1, true) then return body end
       return nil
     end
 
     -- يحفظ السورس لو كان سورس هذا السكربت فعلاً (البصمة + الطول)، ويرجع النسخة المحفوظة
-    local function StoreSelf(src)
-      if not FileOK or type(src) ~= "string" then return nil end
+    function Srv.Store(src)
+      if not Srv.FileOK or type(src) ~= "string" then return nil end
       src = src:gsub("^[@=]", "")
-      if #src < 10000 or not src:find(SelfMark, 1, true) then return nil end
-      if SavedSelf() ~= src then
+      if #src < 10000 or not src:find(Srv.Mark, 1, true) then return nil end
+      if Srv.Saved() ~= src then
         pcall(function() if makefolder and isfolder and not isfolder("HavenHub") then makefolder("HavenHub") end end)
-        pcall(writefile, SelfPath, src)
+        pcall(writefile, Srv.Path, src)
       end
-      return SavedSelf()
+      return Srv.Saved()
     end
 
     -- كل منفذ يعطي السورس بطريقة مختلفة: نجرب الطرق بالترتيب وأول واحدة تنفع تكفي
-    local function CaptureSelf()
-      if not FileOK then return false end
+    function Srv.Capture()
+      if not Srv.FileOK then return false end
       -- 1) سورس حطّه المنفذ أو سطر إعادة التشغيل بالبيئة العامة (أسرع طريقة وأدقها)
-      if StoreSelf(Global("HavenHubSource")) then return true end
+      if Srv.Store(Global("HavenHubSource")) then return true end
       -- 2) اسم القطعة: بعض المنفذات تخلي chunkname نفس السورس
       for level = 1, 6 do
         local ok, name = pcall(function() return debug.info(level, "s") end)
-        if ok and StoreSelf(name) then return true end
+        if ok and Srv.Store(name) then return true end
       end
-      if SavedSelf() then return true end -- عندنا نسخة من قبل: ما نحتاج نفحص الملفات
+      if Srv.Saved() then return true end -- عندنا نسخة من قبل: ما نحتاج نفحص الملفات
       -- 3) ملفات المنفذ: نقرا ملفات السكربتات وندور على اللي فيها البصمة
       if type(listfiles) == "function" then
         local checked = 0
@@ -5033,7 +5036,7 @@
               if type(path) == "string" and (path:match("%.lua$") or path:match("%.txt$")) and checked < 80 then
                 checked = checked + 1
                 local ok2, body = pcall(readfile, path)
-                if ok2 and StoreSelf(body) then return true end
+                if ok2 and Srv.Store(body) then return true end
               end
             end
           end
@@ -5041,7 +5044,7 @@
       end
       return false
     end
-    task.spawn(CaptureSelf) -- أول ما يشتغل السكربت: نجهز النسخة قبل أي ريجوين
+    task.spawn(Srv.Capture) -- أول ما يشتغل السكربت: نجهز النسخة قبل أي ريجوين
 
     -- سطر تشغيل السكربت: النسخة المحفوظة أول، وخانة الرابط بالإعدادات احتياط لو المنفذ ما سمح بالنسخ
     local function GetLoader()
@@ -5053,8 +5056,8 @@
         return src
       end
       -- HavenHubSource ينحفظ بالبيئة عشان النسخة الجديدة تقدر تنسخ نفسها بدورها (ريجوين بعد ريجوين)
-      if CaptureSelf() then
-        return 'local e = (getgenv and getgenv() or _G) local f = readfile("' .. SelfPath
+      if Srv.Capture() then
+        return 'local e = (getgenv and getgenv() or _G) local f = readfile("' .. Srv.Path
           .. '") e.HavenHubSource = f loadstring(f)()'
       end
       return nil
@@ -5084,7 +5087,7 @@
     end
 
     -- يمشي على السيرفرات العامة صفحة صفحة ويعطي كل سيرفر للدالة؛ لو رجّعت true نوقف
-    local function ScanServers(maxPages, visit)
+    function Srv.Scan(maxPages, visit)
       local cursor, page = "", 0
       repeat
         local url = "https://games.roblox.com/v1/games/" .. tostring(PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -5103,9 +5106,9 @@
     end
 
     -- قائمة السيرفرات العامة مرتبة من الأقل أعضاء (التدرج: الأقل أول)
-    local function GetServers()
+    function Srv.List()
       local list, seen = {}, {}
-      ScanServers(3, function(s)
+      Srv.Scan(3, function(s)
         local playing, maxPlayers = tonumber(s.playing), tonumber(s.maxPlayers) or 0
         if type(s.id) == "string" and s.id ~= MyJobId and not seen[s.id]
           and playing and playing > 0 and (maxPlayers == 0 or playing < maxPlayers) then
@@ -5118,15 +5121,15 @@
       return list
     end
 
-    -- ====== أيدي السيرفر المختصر (نفس شكل القوائم بالصورة: 4d29-4fff) ======
+    -- ====== أيدي السيرفر المختصر (نفس شكل القوائم: 4d29-4fff) ======
     -- الـ JobId طويل، والمختصر = أول 4 حروف + المجموعة الثالثة منه
-    local function ShortId(jobId)
+    function Srv.Short(jobId)
       if type(jobId) ~= "string" or #jobId < 18 then return "" end
       return (jobId:sub(1, 4) .. "-" .. jobId:sub(15, 18)):lower()
     end
 
     -- يقبل المختصر (4d29-4fff أو 4d294fff) أو الـ JobId كامل، وينظف المسافات والحروف الكبيرة
-    local function CleanId(text)
+    function Srv.Clean(text)
       text = tostring(text or ""):gsub("%s", ""):lower()
       if text:match("^%x%x%x%x%-%x%x%x%x$") then return text end
       if text:match("^%x%x%x%x%x%x%x%x$") then return text:sub(1, 4) .. "-" .. text:sub(5, 8) end
@@ -5134,32 +5137,31 @@
       return nil
     end
 
-    -- هل هذا الـ JobId هو صاحب الأيدي المكتوب؟
-    -- المقارنة الأساسية بشكل المختصر، ولو القائمة تقص الأيدي بشكل ثاني نقبل: البداية نفسها + الجزء الثاني موجود داخله
-    local function Matches(jobId, wanted)
+    -- هل هذا الـ JobId هو صاحب الأيدي المكتوب؟ لو القائمة تقص الأيدي بشكل ثاني: البداية نفسها + الجزء الثاني داخله
+    function Srv.Matches(jobId, wanted)
       if type(jobId) ~= "string" then return false end
       local id = jobId:lower()
-      if id == wanted or ShortId(id) == wanted then return true end
+      if id == wanted or Srv.Short(id) == wanted then return true end
       local a, b = wanted:match("^(%x+)%-(%x+)$")
       return (a ~= nil) and id:sub(1, #a) == a and id:find(b, 1, true) ~= nil
     end
 
     -- يرجّع الـ JobId كامل لصاحب هذا الأيدي (نفحص صفحات أكثر من العادي عشان نلقاه)
-    local function ResolveId(wanted)
+    function Srv.Resolve(wanted)
       if not wanted then return nil end
       if #wanted >= 32 then return wanted end -- JobId كامل: ما يحتاج بحث
-      if Matches(MyJobId, wanted) then return MyJobId end
+      if Srv.Matches(MyJobId, wanted) then return MyJobId end
       local found = nil
-      ScanServers(10, function(s)
-        if Matches(s.id, wanted) then found = s.id return true end
+      Srv.Scan(10, function(s)
+        if Srv.Matches(s.id, wanted) then found = s.id return true end
       end)
       return found
     end
 
     -- السيرفر المطلوب من خانة الإعدادات (ينحفظ مع بقية الإعدادات وينتقل مع الريجوين)
-    local function WantedId()
+    function Srv.Wanted()
       local opt = Options.TargetServer
-      return CleanId(opt and opt.GetInput and opt:GetInput() or (opt and opt.Text) or "")
+      return Srv.Clean(opt and opt.GetInput and opt:GetInput() or (opt and opt.Text) or "")
     end
 
     local busy, failedJobs = false, {}
@@ -5187,15 +5189,15 @@
       task.spawn(function()
         Mark("rejoin: " .. tostring(reason or "manual"), true)
         local queued = Prepare()
-        local wanted, target = WantedId(), MyJobId
+        local wanted, target = Srv.Wanted(), MyJobId
         if wanted then
-          target = ResolveId(wanted)
+          target = Srv.Resolve(wanted)
           if not target then
             Tell("SERVER ID", "Server " .. wanted .. " was not found in the public list. Rejoining this server.")
             target = MyJobId
           end
         end
-        Tell("REJOINING", queued and ("Rejoining " .. ShortId(target) .. ". The script will come back by itself with the same settings.")
+        Tell("REJOINING", queued and ("Rejoining " .. Srv.Short(target) .. ". The script will come back by itself with the same settings.")
           or "Rejoining now. Could not copy the script, so add your script link in Settings.")
         task.wait(0.6)
         if TryTeleport(target) then TryTeleport(nil) end
@@ -5212,7 +5214,7 @@
         local queued = Prepare()
         Tell("SERVER HOP", queued and (tostring(reason or "Moving to another server") .. ".")
           or "Hopping now. Could not copy the script, so add your script link in Settings.")
-        local servers = GetServers()
+        local servers = Srv.List()
         for _, s in ipairs(servers) do
           if not failedJobs[s.id] then
             failedJobs[s.id] = true
@@ -5241,7 +5243,7 @@
       Callback = function() end
     }, "TargetServer")
     rejoinSection:Button({Name = "Copy My Server ID", Callback = function()
-      local id = ShortId(MyJobId)
+      local id = Srv.Short(MyJobId)
       local copied = pcall(function() if setclipboard then setclipboard(id) elseif toclipboard then toclipboard(id) end end)
       Tell("SERVER ID", id .. (copied and " (copied)" or ""))
     end})
