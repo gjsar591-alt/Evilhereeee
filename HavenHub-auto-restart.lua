@@ -2189,6 +2189,66 @@ local HavenOK, HavenErr = pcall(function()
   shared.VertexJob = game.JobId -- الحارس يخص هذا السيرفر: بعد الريجوين السكربت يرجع يشتغل كامل
   shared.Premium = true
 
+  -- شاشة "Play" قبل الدخول: نضغطها بأنفسنا، وإلا السكربت يضل ينتظر واجهة اللعبة ولا يطلع شي
+  -- (داخل do عشان ما نزيد متغيرات على الدالة الكبيرة)
+  do
+    local function Shown(obj)
+      while obj and obj ~= LocalPlayer.PlayerGui do
+        if obj:IsA("GuiObject") and not obj.Visible then return false end
+        if obj:IsA("ScreenGui") and not obj.Enabled then return false end
+        obj = obj.Parent
+      end
+      return obj ~= nil
+    end
+
+    local function FindPlay()
+      local pg = LocalPlayer:FindFirstChild("PlayerGui")
+      if not pg then return nil end
+      for _, d in ipairs(pg:GetDescendants()) do
+        if d:IsA("GuiButton") and d.AbsoluteSize.X > 40 and Shown(d) then
+          local label = (d:IsA("TextButton") and d.Text ~= "" and d.Text) or d.Name
+          if tostring(label):lower():gsub("%s", "") == "play" then return d end
+        end
+      end
+      return nil
+    end
+
+    -- الضغط: أول عبر اتصالات الزر نفسه (ما يتأثر بشاشة التحميل فوقه)، وإلا نقرة ماوس وهمية على مكانه
+    local function Press(btn)
+      local fired = false
+      pcall(function()
+        if type(getconnections) ~= "function" then return end
+        for _, signal in ipairs({btn.Activated, btn.MouseButton1Click, btn.MouseButton1Down}) do
+          for _, conn in ipairs(getconnections(signal)) do
+            if conn.Fire then pcall(function() conn:Fire() end) fired = true end
+          end
+        end
+      end)
+      if not fired then pcall(function() firesignal(btn.MouseButton1Click) fired = true end) end
+      if not fired then
+        -- shortcut: النقرة الوهمية ممكن تنمسك بشاشة تحميل الهب اللي فوقها؛ لو منفذك ما فيه getconnections ولا نفعت، نخفي شاشة التحميل وقت الضغط
+        pcall(function()
+          local vim = game:GetService("VirtualInputManager")
+          local p = btn.AbsolutePosition + btn.AbsoluteSize / 2 + Services.GuiService:GetGuiInset()
+          vim:SendMouseButtonEvent(p.X, p.Y, 0, true, game, 1)
+          task.wait(0.06)
+          vim:SendMouseButtonEvent(p.X, p.Y, 0, false, game, 1)
+          fired = true
+        end)
+      end
+      return fired
+    end
+
+    task.spawn(function()
+      local started = os.clock()
+      while os.clock() - started < 60 and not LocalPlayer.PlayerGui:FindFirstChild("MainGUI") do
+        local btn = FindPlay()
+        if btn then Mark("auto play: " .. btn:GetFullName()) Press(btn) end
+        task.wait(0.5)
+      end
+    end)
+  end
+
   repeat task.wait() until LocalPlayer.PlayerGui:FindFirstChild("MainGUI")
   HavenLoader:SetProgress(35)
 
