@@ -5326,6 +5326,22 @@ local HavenOK, HavenErr = pcall(function()
     end
   end)
 
+  -- حفظ تلقائي لكل تغيير بالإعدادات: أي رجعة للعبة (ريجوين، طرد، دخول جديد) تبدأ بآخر إعداداتك
+  -- (ما نكتب إلا لو تغيّر شي فعلاً عشان ما نرهق التخزين)
+  task.spawn(function()
+    local last = nil
+    while task.wait(5) do
+      if shared.VertexLoaded ~= true then break end
+      pcall(function()
+        local enc = HttpService:JSONEncode(HavenLib:ExportState())
+        if enc ~= last then
+          last = enc
+          HavenLib:SaveConfig(game.PlaceId)
+        end
+      end)
+    end
+  end)
+
   Window:Notify({
     Title = "HAVEN HUB LOADED",
     Description = "Welcome to Haven Hub. Press LeftControl or the logo button to toggle the UI.",
