@@ -162,8 +162,6 @@ local HavenOK, HavenErr = pcall(function()
     ["Settings"] = "الإعدادات",
     ["Config"] = "إعدادات",
     ["REJOIN & SERVERS"] = "الريجوين والسيرفرات",
-    ["Script Link"] = "رابط السكربت",
-    ["Server ID"] = "أيدي السيرفر",
     ["Copy My Server ID"] = "انسخ أيدي سيرفري",
     ["Auto Rejoin When Kicked"] = "ريجوين تلقائي لما تنطرد",
     ["Hop When Server Is Empty"] = "انتقل لما السيرفر يفضى",
@@ -5106,15 +5104,8 @@ local HavenOK, HavenErr = pcall(function()
     end
     task.spawn(Srv.Capture) -- أول ما يشتغل السكربت: نجهز النسخة قبل أي ريجوين
 
-    -- سطر تشغيل السكربت: النسخة المحفوظة أول، وخانة الرابط بالإعدادات احتياط لو المنفذ ما سمح بالنسخ
+    -- سطر تشغيل السكربت بعد الريجوين: من النسخة اللي حفظها السكربت عن نفسه
     local function GetLoader()
-      local opt = Options.RejoinLoader
-      local src = opt and opt.GetInput and opt:GetInput() or (opt and opt.Text) or ""
-      src = tostring(src):gsub("^%s+", ""):gsub("%s+$", "")
-      if #src >= 8 then
-        if src:match("^https?://") then return ('loadstring(game:HttpGet("' .. src .. '"))()') end
-        return src
-      end
       -- HavenHubSource ينحفظ بالبيئة عشان النسخة الجديدة تقدر تنسخ نفسها بدورها (ريجوين بعد ريجوين)
       if Srv.Capture() then
         return 'local e = (getgenv and getgenv() or _G) local f = readfile("' .. Srv.Path
@@ -5188,42 +5179,6 @@ local HavenOK, HavenErr = pcall(function()
       return (jobId:sub(1, 4) .. "-" .. jobId:sub(15, 18)):lower()
     end
 
-    -- يقبل المختصر (4d29-4fff أو 4d294fff) أو الـ JobId كامل، وينظف المسافات والحروف الكبيرة
-    function Srv.Clean(text)
-      text = tostring(text or ""):gsub("%s", ""):lower()
-      if text:match("^%x%x%x%x%-%x%x%x%x$") then return text end
-      if text:match("^%x%x%x%x%x%x%x%x$") then return text:sub(1, 4) .. "-" .. text:sub(5, 8) end
-      if #text >= 32 and text:match("^[%x%-]+$") then return text end
-      return nil
-    end
-
-    -- هل هذا الـ JobId هو صاحب الأيدي المكتوب؟ لو القائمة تقص الأيدي بشكل ثاني: البداية نفسها + الجزء الثاني داخله
-    function Srv.Matches(jobId, wanted)
-      if type(jobId) ~= "string" then return false end
-      local id = jobId:lower()
-      if id == wanted or Srv.Short(id) == wanted then return true end
-      local a, b = wanted:match("^(%x+)%-(%x+)$")
-      return (a ~= nil) and id:sub(1, #a) == a and id:find(b, 1, true) ~= nil
-    end
-
-    -- يرجّع الـ JobId كامل لصاحب هذا الأيدي (نفحص صفحات أكثر من العادي عشان نلقاه)
-    function Srv.Resolve(wanted)
-      if not wanted then return nil end
-      if #wanted >= 32 then return wanted end -- JobId كامل: ما يحتاج بحث
-      if Srv.Matches(MyJobId, wanted) then return MyJobId end
-      local found = nil
-      Srv.Scan(10, function(s)
-        if Srv.Matches(s.id, wanted) then found = s.id return true end
-      end)
-      return found
-    end
-
-    -- السيرفر المطلوب من خانة الإعدادات (ينحفظ مع بقية الإعدادات وينتقل مع الريجوين)
-    function Srv.Wanted()
-      local opt = Options.TargetServer
-      return Srv.Clean(opt and opt.GetInput and opt:GetInput() or (opt and opt.Text) or "")
-    end
-
     local busy, failedJobs = false, {}
 
     -- انتقال واحد: يرجع true لو فشل الانتقال (عشان نجرب السيرفر اللي بعده)
@@ -5249,18 +5204,10 @@ local HavenOK, HavenErr = pcall(function()
       task.spawn(function()
         Mark("rejoin: " .. tostring(reason or "manual"), true)
         local queued = Prepare()
-        local wanted, target = Srv.Wanted(), MyJobId
-        if wanted then
-          target = Srv.Resolve(wanted)
-          if not target then
-            Tell("SERVER ID", "Server " .. wanted .. " was not found in the public list. Rejoining this server.")
-            target = MyJobId
-          end
-        end
-        Tell("REJOINING", queued and ("Rejoining " .. Srv.Short(target) .. ". The script will come back by itself with the same settings.")
-          or "Rejoining now. Could not copy the script, so add your script link in Settings.")
+        Tell("REJOINING", queued and ("Rejoining " .. Srv.Short(MyJobId) .. ". The script will come back by itself with the same settings.")
+          or "Rejoining now. This executor would not let the script copy itself, so it will not come back.")
         task.wait(0.6)
-        if TryTeleport(target) then TryTeleport(nil) end
+        if TryTeleport(MyJobId) then TryTeleport(nil) end
         busy = false
       end)
     end
@@ -5273,7 +5220,7 @@ local HavenOK, HavenErr = pcall(function()
         Mark("server hop: " .. tostring(reason or "manual"), true)
         local queued = Prepare()
         Tell("SERVER HOP", queued and (tostring(reason or "Moving to another server") .. ".")
-          or "Hopping now. Could not copy the script, so add your script link in Settings.")
+          or "Hopping now. This executor would not let the script copy itself, so it will not come back.")
         local servers = Srv.List()
         for _, s in ipairs(servers) do
           if not failedJobs[s.id] then
@@ -5292,16 +5239,6 @@ local HavenOK, HavenErr = pcall(function()
     -- ====== الخيارات في تبويب الإعدادات ======
     local rejoinSection = shared.tabs.Settings:Section({Side = "Left"})
     rejoinSection:SubLabel({Text = "REJOIN & SERVERS"})
-    rejoinSection:Input({
-      Name = "Script Link",
-      Placeholder = "optional: raw script link (backup)",
-      Callback = function() end
-    }, "RejoinLoader")
-    rejoinSection:Input({
-      Name = "Server ID",
-      Placeholder = "4d29-4fff (optional)",
-      Callback = function() end
-    }, "TargetServer")
     rejoinSection:Button({Name = "Copy My Server ID", Callback = function()
       local id = Srv.Short(MyJobId)
       local copied = pcall(function() if setclipboard then setclipboard(id) elseif toclipboard then toclipboard(id) end end)
@@ -5365,7 +5302,7 @@ local HavenOK, HavenErr = pcall(function()
       if not QueueFn then
         Tell("REJOIN", "This executor has no queue_on_teleport, so the script cannot restart itself after a rejoin.")
       elseif not GetLoader() then
-        Tell("REJOIN", "Could not save a copy of the script. Add your script link in Settings so it comes back after a rejoin.")
+        Tell("REJOIN", "This executor would not let the script save a copy of itself, so it will not come back after a rejoin.")
       end
     end)
   end
