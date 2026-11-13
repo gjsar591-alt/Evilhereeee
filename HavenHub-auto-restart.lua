@@ -163,6 +163,8 @@
     ["Config"] = "إعدادات",
     ["REJOIN & SERVERS"] = "الريجوين والسيرفرات",
     ["Script Link"] = "رابط السكربت",
+    ["Server ID"] = "أيدي السيرفر",
+    ["Copy My Server ID"] = "انسخ أيدي سيرفري",
     ["Auto Rejoin When Kicked"] = "ريجوين تلقائي لما تنطرد",
     ["Hop When Server Is Empty"] = "انتقل لما السيرفر يفضى",
     ["Hop When Players Are"] = "انتقل لما اللاعبين",
@@ -5081,9 +5083,9 @@
       pcall(function() Window:Notify({Title = title, Description = text, Duration = 5}) end)
     end
 
-    -- قائمة السيرفرات العامة مرتبة من الأقل أعضاء (التدرج: الأقل أول)
-    local function GetServers()
-      local list, seen, cursor, page = {}, {}, "", 0
+    -- يمشي على السيرفرات العامة صفحة صفحة ويعطي كل سيرفر للدالة؛ لو رجّعت true نوقف
+    local function ScanServers(maxPages, visit)
+      local cursor, page = "", 0
       repeat
         local url = "https://games.roblox.com/v1/games/" .. tostring(PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
         if cursor ~= "" then url = url .. "&cursor=" .. cursor end
@@ -5092,18 +5094,72 @@
         local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
         if not ok or type(data) ~= "table" or type(data.data) ~= "table" then break end
         for _, s in ipairs(data.data) do
-          local playing, maxPlayers = tonumber(s.playing), tonumber(s.maxPlayers) or 0
-          if type(s.id) == "string" and s.id ~= MyJobId and not seen[s.id]
-            and playing and playing > 0 and (maxPlayers == 0 or playing < maxPlayers) then
-            seen[s.id] = true
-            table.insert(list, {id = s.id, playing = playing})
-          end
+          if visit(s) then return true end
         end
         cursor = (type(data.nextPageCursor) == "string") and data.nextPageCursor or ""
         page = page + 1
-      until cursor == "" or page >= 3 or #list >= 80
+      until cursor == "" or page >= maxPages
+      return false
+    end
+
+    -- قائمة السيرفرات العامة مرتبة من الأقل أعضاء (التدرج: الأقل أول)
+    local function GetServers()
+      local list, seen = {}, {}
+      ScanServers(3, function(s)
+        local playing, maxPlayers = tonumber(s.playing), tonumber(s.maxPlayers) or 0
+        if type(s.id) == "string" and s.id ~= MyJobId and not seen[s.id]
+          and playing and playing > 0 and (maxPlayers == 0 or playing < maxPlayers) then
+          seen[s.id] = true
+          table.insert(list, {id = s.id, playing = playing})
+        end
+        return #list >= 80
+      end)
       table.sort(list, function(a, b) return a.playing < b.playing end)
       return list
+    end
+
+    -- ====== أيدي السيرفر المختصر (نفس شكل القوائم بالصورة: 4d29-4fff) ======
+    -- الـ JobId طويل، والمختصر = أول 4 حروف + المجموعة الثالثة منه
+    local function ShortId(jobId)
+      if type(jobId) ~= "string" or #jobId < 18 then return "" end
+      return (jobId:sub(1, 4) .. "-" .. jobId:sub(15, 18)):lower()
+    end
+
+    -- يقبل المختصر (4d29-4fff أو 4d294fff) أو الـ JobId كامل، وينظف المسافات والحروف الكبيرة
+    local function CleanId(text)
+      text = tostring(text or ""):gsub("%s", ""):lower()
+      if text:match("^%x%x%x%x%-%x%x%x%x$") then return text end
+      if text:match("^%x%x%x%x%x%x%x%x$") then return text:sub(1, 4) .. "-" .. text:sub(5, 8) end
+      if #text >= 32 and text:match("^[%x%-]+$") then return text end
+      return nil
+    end
+
+    -- هل هذا الـ JobId هو صاحب الأيدي المكتوب؟
+    -- المقارنة الأساسية بشكل المختصر، ولو القائمة تقص الأيدي بشكل ثاني نقبل: البداية نفسها + الجزء الثاني موجود داخله
+    local function Matches(jobId, wanted)
+      if type(jobId) ~= "string" then return false end
+      local id = jobId:lower()
+      if id == wanted or ShortId(id) == wanted then return true end
+      local a, b = wanted:match("^(%x+)%-(%x+)$")
+      return (a ~= nil) and id:sub(1, #a) == a and id:find(b, 1, true) ~= nil
+    end
+
+    -- يرجّع الـ JobId كامل لصاحب هذا الأيدي (نفحص صفحات أكثر من العادي عشان نلقاه)
+    local function ResolveId(wanted)
+      if not wanted then return nil end
+      if #wanted >= 32 then return wanted end -- JobId كامل: ما يحتاج بحث
+      if Matches(MyJobId, wanted) then return MyJobId end
+      local found = nil
+      ScanServers(10, function(s)
+        if Matches(s.id, wanted) then found = s.id return true end
+      end)
+      return found
+    end
+
+    -- السيرفر المطلوب من خانة الإعدادات (ينحفظ مع بقية الإعدادات وينتقل مع الريجوين)
+    local function WantedId()
+      local opt = Options.TargetServer
+      return CleanId(opt and opt.GetInput and opt:GetInput() or (opt and opt.Text) or "")
     end
 
     local busy, failedJobs = false, {}
@@ -5131,10 +5187,18 @@
       task.spawn(function()
         Mark("rejoin: " .. tostring(reason or "manual"), true)
         local queued = Prepare()
-        Tell("REJOINING", queued and "Rejoining now. The script will come back by itself with the same settings."
+        local wanted, target = WantedId(), MyJobId
+        if wanted then
+          target = ResolveId(wanted)
+          if not target then
+            Tell("SERVER ID", "Server " .. wanted .. " was not found in the public list. Rejoining this server.")
+            target = MyJobId
+          end
+        end
+        Tell("REJOINING", queued and ("Rejoining " .. ShortId(target) .. ". The script will come back by itself with the same settings.")
           or "Rejoining now. Could not copy the script, so add your script link in Settings.")
         task.wait(0.6)
-        if TryTeleport(MyJobId) then TryTeleport(nil) end
+        if TryTeleport(target) then TryTeleport(nil) end
         busy = false
       end)
     end
@@ -5171,6 +5235,16 @@
       Placeholder = "optional: raw script link (backup)",
       Callback = function() end
     }, "RejoinLoader")
+    rejoinSection:Input({
+      Name = "Server ID",
+      Placeholder = "4d29-4fff (optional)",
+      Callback = function() end
+    }, "TargetServer")
+    rejoinSection:Button({Name = "Copy My Server ID", Callback = function()
+      local id = ShortId(MyJobId)
+      local copied = pcall(function() if setclipboard then setclipboard(id) elseif toclipboard then toclipboard(id) end end)
+      Tell("SERVER ID", id .. (copied and " (copied)" or ""))
+    end})
     rejoinSection:Toggle("AutoRejoinKick", "Auto Rejoin When Kicked", {State = true})
     rejoinSection:Toggle("AutoHopEmpty", "Hop When Server Is Empty", {State = true})
     rejoinSection:Slider("HopPlayerLimit", "Hop When Players Are", 1, 6, 1)
