@@ -5052,7 +5052,7 @@ local HavenOK, HavenErr = pcall(function()
       Path = "HavenHub/self.lua",
       Mark = "HavenHubStartedJob", -- بصمة تميز سورس هذا السكربت عن أي ملف ثاني
       -- نسخة السكربت المرفوعة: نجيبها لو المنفذ ما سمح لنا نقرا سورس أنفسنا (بدّل الرابط لو نقلت الملف)
-      Url = "https://raw.githubusercontent.com/gjsar591-alt/Evilhereeee/claude/fervent-volta-w64bf7/HavenHub-auto-restart.lua",
+      Url = "https://raw.githubusercontent.com/gjsar591-alt/Evilhereeee/refs/heads/claude/fervent-volta-w64bf7/HavenHub-auto-restart.lua",
       FileOK = type(writefile) == "function" and type(readfile) == "function" and type(isfile) == "function"
     }
 
