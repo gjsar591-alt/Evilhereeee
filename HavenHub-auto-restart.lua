@@ -1,4 +1,4 @@
-(function()
+local HavenOK, HavenErr = pcall(function()
   if not game:IsLoaded() then game.Loaded:Wait() end
 
   -- توافق مع كل المنفذات: بديل لو getgenv غير موجودة
@@ -5365,4 +5365,22 @@
       end
     end
   end
-end)()
+end)
+
+-- لو طاح السكربت بأي خطأ: نعرضه بدل ما تطلع الشاشة فاضية بدون أي خبر،
+-- ونمسح حارس التشغيل المزدوج عشان المحاولة الجاية ما تنرفض بصمت
+if not HavenOK then
+  local msg = "[HAVEN HUB] " .. tostring(HavenErr)
+  pcall(function() warn(msg) end)
+  pcall(function() if setclipboard then setclipboard(msg) elseif toclipboard then toclipboard(msg) end end)
+  pcall(function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {Title = "HAVEN HUB ERROR", Text = tostring(HavenErr):sub(1, 180), Duration = 20})
+  end)
+  pcall(function()
+    local env = (getgenv and getgenv()) or _G
+    env.HavenHubStartedAt = nil
+    env.HavenHubStartedJob = nil
+    shared.VertexLoaded = nil
+    shared.VertexJob = nil
+  end)
+end
