@@ -5233,8 +5233,10 @@ local HavenOK, HavenErr = pcall(function()
         local ok, name = pcall(function() return debug.info(level, "s") end)
         if ok and Srv.Store(name) then return true end
       end
-      if Srv.Saved() then return true end -- عندنا نسخة من قبل: ما نحتاج نفحص الملفات
-      -- 3) ملفات المنفذ: نقرا ملفات السكربتات وندور على اللي فيها البصمة
+      if Srv.Saved() then return true end -- عندنا نسخة من قبل: ما نحتاج نفحص شي
+      -- 3) النسخة المرفوعة: أسرع وأضمن من فحص الملفات (خصوصاً على الجوال)
+      if Srv.Store(HttpGet(Srv.Url)) then return true end
+      -- 4) آخر حل: نفحص ملفات المنفذ وندور على اللي فيها بصمة السكربت
       if type(listfiles) == "function" then
         local checked = 0
         for _, folder in ipairs({"", "autoexec", "scripts", "Scripts", "workspace", "HavenHub"}) do
@@ -5250,8 +5252,7 @@ local HavenOK, HavenErr = pcall(function()
           end
         end
       end
-      -- 4) ما نفعت أي طريقة: ننزّل النسخة المرفوعة ونحفظها، وبعدها الريجوين يصير من الملف المحلي
-      return Srv.Store(HttpGet(Srv.Url)) ~= nil
+      return false
     end
     task.spawn(Srv.Capture) -- أول ما يشتغل السكربت: نجهز النسخة قبل أي ريجوين
 
