@@ -2401,17 +2401,28 @@ local HavenOK, HavenErr = pcall(function()
         local function Restore()
           pcall(function() if bv then bv:Destroy() end end)
           pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true) end)
+          pcall(function() hum.PlatformStand = false end)
           pcall(function() workspace.FallenPartsDestroyHeight = oldDestroyHeight end)
         end
 
         local ok = pcall(function()
-          StepTo(tRoot.Position, 18)
+          -- الاقتراب فقط لو الهدف بعيد: الدوران نفسه ينقلنا فوقه، فلا داعي نضيع وقت بالقريب
+          if (tRoot.Position - myRoot.Position).Magnitude > 60 then StepTo(tRoot.Position, 18) end
           workspace.FallenPartsDestroyHeight = 0 / 0 -- عشان ما تنحذف أجزاءنا لو طارت
           -- قوة دفع ضخمة ثابتة على الجذر: هذي اللي تقذف الهدف لما نلمسه
           bv = Instance.new("BodyVelocity")
           bv.Name = "HavenFlingVel" bv.Velocity = Vector3.new(9e7, -9e8, 9e7) bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge) bv.Parent = myRoot
           hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
-          myRoot.CanCollide = true
+          hum.PlatformStand = true -- يمنع الـ Humanoid من "ترتيب" الحالة وإلغاء التصادم
+          -- الـ Humanoid يرجّع CanCollide = false على الجذر كل فريم، فلازم نعيده كل لفة
+          -- (تفعيله مرة وحدة بالبداية = ما فيه تصادم بعد أول فريم = الفلنق ما يشتغل)
+          local function Collide()
+            for _, name in ipairs({"HumanoidRootPart", "Torso", "UpperTorso", "LowerTorso", "Head"}) do
+              local part = char:FindFirstChild(name)
+              if part and part:IsA("BasePart") then part.CanCollide = true end
+            end
+          end
+          Collide()
           local function place(offset, angle)
             local cf = CFrame.new(tRoot.Position) * offset * CFrame.Angles(math.rad(angle), 0, 0)
             myRoot.CFrame = cf
@@ -2421,6 +2432,7 @@ local HavenOK, HavenErr = pcall(function()
           local start, angle = os.clock(), 0
           repeat
             angle = angle + 100
+            Collide()
             local lead = tHum.MoveDirection * tRoot.AssemblyLinearVelocity.Magnitude / 1.25
             -- نضربه من فوق ومن الجنب ونحن ندور، والدفع كله لتحت: يخترق الأرض ويطيح في الفويد
             place(CFrame.new(Vector3.new(0, 2, 0) + lead), angle) task.wait()
@@ -2751,6 +2763,7 @@ local HavenOK, HavenErr = pcall(function()
 
       local function farmStep()
         if not Options.AutoFarm:GetValue() or not IsPlayerAlive(LocalPlayer, roles) or not root then return end
+        if flingBusy then return end -- وقت الفلنق نوقف الفارم: الاثنين يسحبون الشخصية بعكس بعض
         local pick = Options.FarmTarget and Options.FarmTarget:GetValue()
         local mode = (pick == "Random Nearby" and "random") or (pick == "Far From Murderer" and "safe") or "closest"
         -- عالقين على نفس العملة أكثر من 3 ثواني (جدار أو سقف): نتجاوزها ونكمل على غيرها
