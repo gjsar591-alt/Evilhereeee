@@ -2722,9 +2722,8 @@ local HavenOK, HavenErr = pcall(function()
         -- إيقاع لا يطرد: نقلة وحدة كل ~ثانية، مو خطوات متتابعة.
         -- التجربة: نقلة/ثانية ما طردت أبداً، والخطوات السريعة طردت "Invalid position".
         -- السلايدر يقصّر الفاصل لين 0.7 ثانية فقط، وما ينزل تحتها مهما رفعته
-        -- فاصل غير منتظم شوي: الإيقاع الآلي الثابت أسهل شي ينكشف بفحوصات النمط
-        local gap = math.clamp(26 / speed, 0.7, 1.2) + math.random() * 0.2
-        local left = gap - (os.clock() - (farmStall.lastTp or 0))
+        -- الفاصل بين نقلة ونقلة: 0.67 ثانية بالضبط (سلايدر السرعة يخص الأنماط الثانية)
+        local left = 0.67 - (os.clock() - (farmStall.lastTp or 0))
         if left > 0 then task.wait(left) end
         if not (coin.Parent and rootPart.Parent and Options.AutoFarm:GetValue()) or IsBagFull() then return end
         farmStall.lastTp = os.clock()
