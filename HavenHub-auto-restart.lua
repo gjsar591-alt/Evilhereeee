@@ -2193,7 +2193,8 @@ local HavenOK, HavenErr = pcall(function()
   shared.VertexJob = game.JobId -- الحارس يخص هذا السيرفر: بعد الريجوين السكربت يرجع يشتغل كامل
   shared.Premium = true
 
-  -- شاشة "Play" قبل الدخول: نضغطها بأنفسنا، وإلا السكربت يضل ينتظر واجهة اللعبة ولا يطلع شي
+  -- شاشات تطلع قبل واجهة اللعبة وتوقف السكربت: زر Play واختيار الجهاز (Phone / Tablet)
+  -- نضغطها بأنفسنا، وإلا السكربت يضل ينتظر واجهة اللعبة ولا يطلع شي
   -- (داخل do عشان ما نزيد متغيرات على الدالة الكبيرة)
   do
     local function Shown(obj)
@@ -2205,13 +2206,23 @@ local HavenOK, HavenErr = pcall(function()
       return obj ~= nil
     end
 
-    local function FindPlay()
+    -- نص الزر: نصه هو، وإلا نص أول TextLabel داخله (أزرار الجهاز صورة + نص جوّاها)، وإلا اسمه
+    local function LabelOf(btn)
+      if btn:IsA("TextButton") and btn.Text ~= "" then return btn.Text end
+      for _, child in ipairs(btn:GetDescendants()) do
+        if child:IsA("TextLabel") and child.Text ~= "" then return child.Text end
+      end
+      return btn.Name
+    end
+
+    local WANTED = {play = true, phone = true} -- "phone" لاختيار الجهاز: اللعبة ما تكمّل بدونه
+    local function FindPrompt()
       local pg = LocalPlayer:FindFirstChild("PlayerGui")
       if not pg then return nil end
       for _, d in ipairs(pg:GetDescendants()) do
         if d:IsA("GuiButton") and d.AbsoluteSize.X > 40 and Shown(d) then
-          local label = (d:IsA("TextButton") and d.Text ~= "" and d.Text) or d.Name
-          if tostring(label):lower():gsub("%s", "") == "play" then return d end
+          local label = tostring(LabelOf(d)):lower():gsub("%s", "")
+          if WANTED[label] then return d end
         end
       end
       return nil
@@ -2244,10 +2255,25 @@ local HavenOK, HavenErr = pcall(function()
     end
 
     task.spawn(function()
-      local started = os.clock()
+      local started, tries = os.clock(), 0
       while os.clock() - started < 60 and not LocalPlayer.PlayerGui:FindFirstChild("MainGUI") do
-        local btn = FindPlay()
-        if btn then Mark("auto play: " .. btn:GetFullName()) Press(btn) end
+        local btn = FindPrompt()
+        if btn then
+          tries = tries + 1
+          if tries <= 3 then Mark("auto press: " .. btn:GetFullName()) end
+          Press(btn)
+          -- ما انحلت بعد محاولتين: نخفي شاشة تحميل الهب عشان المستخدم يقدر يضغط الزر بنفسه
+          if tries == 4 then
+            local function HideLoader(where)
+              local loaderGui = where and where:FindFirstChild("HavenHubLoader")
+              if loaderGui then loaderGui.Enabled = false end
+            end
+            pcall(function() HideLoader(gethui and gethui()) end)
+            pcall(function() HideLoader(Services.CoreGui) end)
+            pcall(function() HideLoader(LocalPlayer:FindFirstChild("PlayerGui")) end)
+            Mark("auto press failed, loading screen hidden so the button can be tapped", true)
+          end
+        end
         task.wait(0.5)
       end
     end)
