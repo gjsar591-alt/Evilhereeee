@@ -126,6 +126,50 @@ pcall(function()
   Add("play button found: " .. tostring(play ~= nil) .. (play and (" (" .. play:GetFullName() .. ")") or ""))
 end)
 
+-- ====== الأزرار الظاهرة الحين (عشان نعرف شكل شاشة اختيار الجهاز) ======
+pcall(function()
+  local pg = LocalPlayer:FindFirstChild("PlayerGui")
+  if not pg then Add("no PlayerGui") return end
+  local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+  Add("viewport: " .. (vp and (math.floor(vp.X) .. "x" .. math.floor(vp.Y)) or "?")
+    .. " -> device guess: " .. ((vp and math.min(vp.X, vp.Y) >= 600) and "tablet" or "phone"))
+
+  local function Shown(obj)
+    while obj and obj ~= pg do
+      if obj:IsA("GuiObject") and not obj.Visible then return false end
+      if obj:IsA("ScreenGui") and not obj.Enabled then return false end
+      obj = obj.Parent
+    end
+    return obj ~= nil
+  end
+  local function TextOf(obj)
+    if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and obj.Text ~= "" then return obj.Text end
+    for _, child in ipairs(obj:GetDescendants()) do
+      if child:IsA("TextLabel") and child.Text ~= "" then return child.Text end
+    end
+    return ""
+  end
+
+  local shown, hits = 0, 0
+  Add("-- visible buttons / device matches --")
+  for _, d in ipairs(pg:GetDescendants()) do
+    if d:IsA("GuiObject") and Shown(d) and d.AbsoluteSize.X > 40 then
+      local text = TextOf(d)
+      local blob = (d.Name .. " " .. text):lower()
+      local isMatch = blob:find("phone") or blob:find("tablet") or blob:find("device") or blob:find("play")
+      if (d:IsA("GuiButton") and shown < 18) or isMatch then
+        if isMatch then hits = hits + 1 end
+        shown = shown + 1
+        Add(string.format("%s | %s | text=%q | %dx%d | %s",
+          d.ClassName, d.Name, text:sub(1, 24),
+          math.floor(d.AbsoluteSize.X), math.floor(d.AbsoluteSize.Y),
+          d:GetFullName():gsub("^Players%.[^.]+%.PlayerGui%.", "")))
+      end
+    end
+  end
+  Add("-- listed " .. shown .. " objects, " .. hits .. " device/play matches --")
+end)
+
 -- تحميل السكربت
 local okGet, source = pcall(function() return game:HttpGet(URL) end)
 Add("download: " .. tostring(okGet) .. "  bytes=" .. tostring(okGet and #source or 0))

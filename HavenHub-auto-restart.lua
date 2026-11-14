@@ -2215,17 +2215,32 @@ local HavenOK, HavenErr = pcall(function()
       return btn.Name
     end
 
-    local WANTED = {play = true, phone = true} -- "phone" لاختيار الجهاز: اللعبة ما تكمّل بدونه
+    -- جهاز المستخدم من حجم الشاشة: الآيباد/التابلت أقصر ضلع عنده كبير
+    local function DeviceWord()
+      local ok, vp = pcall(function() return workspace.CurrentCamera.ViewportSize end)
+      local small = (ok and vp) and math.min(vp.X, vp.Y) or 400
+      return (small >= 600) and "tablet" or "phone"
+    end
+
+    -- ندوّر على "play" أو اسم الجهاز داخل الاسم/النص (مو مطابقة حرفية: الأزرار تجي بأسماء مثل PhoneButton)
+    -- ونقبل الإطارات كمان لأن بعض الواجهات تسمع اللمس على Frame مو على زر
     local function FindPrompt()
       local pg = LocalPlayer:FindFirstChild("PlayerGui")
       if not pg then return nil end
+      local want = DeviceWord()
+      local best, bestArea
       for _, d in ipairs(pg:GetDescendants()) do
-        if d:IsA("GuiButton") and d.AbsoluteSize.X > 40 and Shown(d) then
+        if d:IsA("GuiObject") and d.AbsoluteSize.X > 40 and d.AbsoluteSize.Y > 20 and Shown(d) then
           local label = tostring(LabelOf(d)):lower():gsub("%s", "")
-          if WANTED[label] then return d end
+          if label:sub(1, 4) == "play" or label:find(want, 1, true) then
+            -- الأصغر أدق (الزر نفسه مو الإطار اللي حوله)، والزر الحقيقي أولى من الإطار
+            local area = d.AbsoluteSize.X * d.AbsoluteSize.Y
+            if d:IsA("GuiButton") then area = area - 1e6 end
+            if not bestArea or area < bestArea then best, bestArea = d, area end
+          end
         end
       end
-      return nil
+      return best
     end
 
     -- الضغط: أول عبر اتصالات الزر نفسه (ما يتأثر بشاشة التحميل فوقه)، وإلا نقرة ماوس وهمية على مكانه
@@ -2241,10 +2256,14 @@ local HavenOK, HavenErr = pcall(function()
       end)
       if not fired then pcall(function() firesignal(btn.MouseButton1Click) fired = true end) end
       if not fired then
-        -- shortcut: النقرة الوهمية ممكن تنمسك بشاشة تحميل الهب اللي فوقها؛ لو منفذك ما فيه getconnections ولا نفعت، نخفي شاشة التحميل وقت الضغط
         pcall(function()
           local vim = game:GetService("VirtualInputManager")
           local p = btn.AbsolutePosition + btn.AbsoluteSize / 2 + Services.GuiService:GetGuiInset()
+          -- لمسة حقيقية أولاً: واجهات الجوال تسمع اللمس وتتجاهل الماوس
+          pcall(function()
+            vim:SendTouchEvent(1, 0, p.X, p.Y) task.wait(0.05)
+            vim:SendTouchEvent(1, 2, p.X, p.Y)
+          end)
           vim:SendMouseButtonEvent(p.X, p.Y, 0, true, game, 1)
           task.wait(0.06)
           vim:SendMouseButtonEvent(p.X, p.Y, 0, false, game, 1)
