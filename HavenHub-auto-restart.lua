@@ -17,7 +17,7 @@ local HavenOK, HavenErr = pcall(function()
   -- رجعنا عن طريق autoexec (منفذ بلا queue_on_teleport)؟ نمسح ملف الإقلاع عشان ما يشتغل بكل فتح للعبة
   pcall(function()
     local remove = delfile or deletefile
-    if isfile and remove and isfile("autoexec/HavenHubRestart.lua") then remove("autoexec/HavenHubRestart.lua") end
+    if isfile and remove and isfile("autoexec/HavenHubRestart.lua") then remove("autoexec/HavenHubRestart.lua") end -- Srv.FilePath
   end)
 
   local Services = setmetatable({}, {
@@ -5339,20 +5339,37 @@ local HavenOK, HavenErr = pcall(function()
       return loader
     end
 
+    -- ملف الإقلاع: يرجّع السكربت حتى لو الانتقال فشل أو انطردت (وهذا الحال الغالب بالجوال).
+    -- ينكتب بمجلد autoexec حق المنفذ، يمسح نفسه بأول سطر، ومحمي بـ PlaceId فما يشتغل بلعبة ثانية.
+    -- نتأكد إنه انكتب فعلاً بقراءته مرة ثانية: بعض المنفذات تبلع writefile بصمت
+    Srv.FilePath = "autoexec/HavenHubRestart.lua"
+    function Srv.ArmFile(payload)
+      if not Srv.FileOK or type(writefile) ~= "function" then return false end
+      pcall(function()
+        if type(isfolder) == "function" and type(makefolder) == "function" and not isfolder("autoexec") then
+          makefolder("autoexec") -- المنفذ بلا مجلد إقلاع: ننشئه
+        end
+      end)
+      local body = 'pcall(function() local d = delfile or deletefile if d then d("' .. Srv.FilePath .. '") end end) '
+        .. 'if game.PlaceId ~= ' .. tostring(Srv.Place) .. ' then return end '
+        .. payload
+      if not pcall(writefile, Srv.FilePath, body) then return false end
+      local ok, saved = pcall(readfile, Srv.FilePath)
+      return ok and type(saved) == "string" and #saved > 50
+    end
+
+    -- يرجّع (جاهز؟، كيف) عشان الإشعار يقول لك وش انحجز فعلاً بدل ما تخمّن
     function Srv.Prepare()
       pcall(function() HavenLib:SaveConfig(game.PlaceId) end)
       local payload = Srv.Payload()
-      if not payload then return false end
-      local ready = false
-      if Srv.Queue then pcall(Srv.Queue, payload) ready = true end
-      -- ونكتبه كمان بملف autoexec: بعد الطرد الانتقال يفشل أصلاً (خصوصاً بالجوال) فالـ queue ما ينفع،
-      -- والملف يرجّع السكربت أول ما تدخل اللعبة بنفسك. يمسح نفسه بأول سطر فما يشتغل مرتين
-      if Srv.FileOK and type(isfolder) == "function" and isfolder("autoexec") then
-        local selfDelete = 'pcall(function() local d = delfile or deletefile if d then d("autoexec/HavenHubRestart.lua") end end) '
-        local placeGuard = 'if game.PlaceId ~= ' .. tostring(Srv.Place) .. ' then return end '
-        if pcall(writefile, "autoexec/HavenHubRestart.lua", selfDelete .. placeGuard .. payload) then ready = true end
+      if not payload then return false, "none" end
+      local how = {}
+      if Srv.Queue then
+        local ok = pcall(Srv.Queue, payload)
+        if ok then how[#how + 1] = "queue" end
       end
-      return ready
+      if Srv.ArmFile(payload) then how[#how + 1] = "autoexec" end
+      return #how > 0, (#how > 0) and table.concat(how, "+") or "none"
     end
 
     function Srv.Tell(title, text)
@@ -5425,9 +5442,9 @@ local HavenOK, HavenErr = pcall(function()
       Srv.busy = true
       task.spawn(function()
         Mark("rejoin: " .. tostring(reason or "manual"), true)
-        local queued = Srv.Prepare()
-        Srv.Tell("REJOINING", queued and ("Rejoining " .. Srv.Short(Srv.Job) .. ". The script will come back by itself with the same settings.")
-          or "Rejoining now. This executor would not let the script copy itself, so it will not come back.")
+        local queued, how = Srv.Prepare()
+        Srv.Tell("REJOINING", queued and ("Rejoining " .. Srv.Short(Srv.Job) .. ". Restart armed: " .. how .. ".")
+          or "Rejoining now. Nothing could be armed, so the script will not come back by itself.")
         task.wait(0.6)
         if Srv.Teleport(Srv.Job) then Srv.Teleport(nil) end
         Srv.busy = false
@@ -5440,9 +5457,9 @@ local HavenOK, HavenErr = pcall(function()
       Srv.busy = true
       task.spawn(function()
         Mark("server hop: " .. tostring(reason or "manual"), true)
-        local queued = Srv.Prepare()
-        Srv.Tell("SERVER HOP", queued and (tostring(reason or "Moving to another server") .. ".")
-          or "Hopping now. This executor would not let the script copy itself, so it will not come back.")
+        local queued, how = Srv.Prepare()
+        Srv.Tell("SERVER HOP", queued and (tostring(reason or "Moving to another server") .. ". Restart armed: " .. how .. ".")
+          or "Hopping now. Nothing could be armed, so the script will not come back by itself.")
         local servers = Srv.List()
         for _, s in ipairs(servers) do
           if not Srv.failed[s.id] then
@@ -5522,7 +5539,7 @@ local HavenOK, HavenErr = pcall(function()
 
     task.delay(8, function()
       if Srv.Queue then return end
-      local viaAutoexec = Srv.FileOK and type(isfolder) == "function" and isfolder("autoexec")
+      local viaAutoexec = Srv.FileOK and type(writefile) == "function"
       Srv.Tell("REJOIN", viaAutoexec
         and "This executor has no queue_on_teleport, so the script will come back through its autoexec folder instead."
         or "This executor has no queue_on_teleport and no autoexec folder, so the script cannot restart itself after a rejoin.")

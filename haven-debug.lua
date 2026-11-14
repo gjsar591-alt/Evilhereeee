@@ -170,6 +170,55 @@ pcall(function()
   Add("-- listed " .. shown .. " objects, " .. hits .. " device/play matches --")
 end)
 
+-- ====== جاهزية الريجوين ======
+pcall(function()
+  Add("-- rejoin readiness --")
+  local function Try(label, fn)
+    local ok, value = pcall(fn)
+    local found = ok and type(value) == "function"
+    Add("  " .. label .. ": " .. (found and "FOUND" or (ok and type(value) or "err")))
+    return found
+  end
+  local any = false
+  any = Try("queue direct", function() return queue_on_teleport or queueonteleport end) or any
+  any = Try("queue getgenv", function() return getgenv().queue_on_teleport end) or any
+  any = Try("queue _G", function() return _G.queue_on_teleport end) or any
+  any = Try("queue syn", function() return syn.queue_on_teleport end) or any
+  any = Try("queue delta", function() return delta.queue_on_teleport end) or any
+  Add("  => queue usable: " .. tostring(any))
+
+  -- مجلد الإقلاع: ننشئه لو ناقص، نكتب ملف تجربة، نقراه، ونمسحه
+  local path = "autoexec/HavenHubProbe.txt"
+  local okFolder = pcall(function()
+    if type(isfolder) == "function" and not isfolder("autoexec") and type(makefolder) == "function" then makefolder("autoexec") end
+  end)
+  local exists = pcall(function() return isfolder("autoexec") end) and isfolder("autoexec")
+  Add("  autoexec folder: " .. tostring(exists) .. " (create attempt: " .. tostring(okFolder) .. ")")
+  local wrote = pcall(writefile, path, "probe")
+  local readBack = false
+  pcall(function() readBack = isfile(path) and readfile(path) == "probe" end)
+  Add("  autoexec write: " .. tostring(wrote) .. "  read back: " .. tostring(readBack))
+  pcall(function() local d = delfile or deletefile if d then d(path) end end)
+
+  -- محتويات جذر ملفات المنفذ (أول 10)
+  pcall(function()
+    if type(listfiles) ~= "function" then Add("  listfiles: missing") return end
+    local items = listfiles("")
+    local shown = {}
+    for i = 1, math.min(#items, 10) do shown[#shown + 1] = tostring(items[i]) end
+    Add("  fs root (" .. #items .. "): " .. table.concat(shown, " | "))
+  end)
+
+  pcall(function()
+    local ts = game:GetService("TeleportService")
+    Add("  TeleportToPlaceInstance: " .. type(ts.TeleportToPlaceInstance) .. "  Teleport: " .. type(ts.Teleport))
+  end)
+  pcall(function()
+    local cfg = "HavenHub/settings/" .. tostring(game.PlaceId) .. ".json"
+    Add("  saved settings file: " .. tostring(isfile and isfile(cfg) or false))
+  end)
+end)
+
 -- تحميل السكربت
 local okGet, source = pcall(function() return game:HttpGet(URL) end)
 Add("download: " .. tostring(okGet) .. "  bytes=" .. tostring(okGet and #source or 0))
