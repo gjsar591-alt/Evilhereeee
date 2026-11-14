@@ -2689,53 +2689,55 @@ local HavenOK, HavenErr = pcall(function()
     end)
   end
 
+  local Esp = {} -- كل عناصر الـ ESP بجدول واحد: Luau يسمح بـ 200 متغير محلي فقط بالدالة الوحدة
+
   -- ============================================================================
   -- Advanced ESP: هيكل عظمي مفصل لمفصل + مربع + بطاقة، وكله يتعدل من قائمة ESP SETTINGS
   -- ============================================================================
-  local EspColorNames = {"Red", "Blue", "Green", "Yellow", "Orange", "Purple", "Pink", "Cyan", "White", "Black"}
-  local EspColors = {
+  Esp.EspColorNames = {"Red", "Blue", "Green", "Yellow", "Orange", "Purple", "Pink", "Cyan", "White", "Black"}
+  Esp.EspColors = {
     Red = Color3.fromRGB(225, 29, 46), Blue = Color3.fromRGB(0, 110, 255), Green = Color3.fromRGB(76, 215, 134),
     Yellow = Color3.fromRGB(255, 214, 10), Orange = Color3.fromRGB(255, 140, 0), Purple = Color3.fromRGB(160, 90, 255),
     Pink = Color3.fromRGB(255, 105, 180), Cyan = Color3.fromRGB(0, 220, 230), White = Color3.fromRGB(255, 255, 255), Black = Color3.fromRGB(15, 15, 18)
   }
   -- الخيارات تنبني بعد هالكود، فنقرأها وقت التشغيل مع قيمة افتراضية
-  local function EspOpt(id, default)
+  function Esp.EspOpt(id, default)
     local opt = Options[id]
     if not opt then return default end
     local value = opt:GetValue()
     if value == nil then return default end
     return value
   end
-  local function EspColor(id, default) return EspColors[EspOpt(id, default)] or EspColors[default] end
+  function Esp.EspColor(id, default) return Esp.EspColors[Esp.EspOpt(id, default)] or Esp.EspColors[default] end
 
-  local espState = {} -- [player] = لون الهيكل (أو nil لو هيكله مخفي)
-  local espLines = {} -- [player] = {LineHandleAdornment, ...}
-  local espGui = {}   -- [player] = {box, fill, edge, barBg, bar, tag, label, hl}
-  local espFolder = nil
-  local function GetEspFolder()
-    if not (espFolder and espFolder.Parent) then
-      espFolder = Instance.new("Folder")
-      espFolder.Name = "HavenEspLines"
-      if not SafeParentGui(espFolder) then espFolder.Parent = workspace end
+  Esp.espState = {} -- [player] = لون الهيكل (أو nil لو هيكله مخفي)
+  Esp.espLines = {} -- [player] = {LineHandleAdornment, ...}
+  Esp.espGui = {}   -- [player] = {box, fill, edge, barBg, bar, tag, label, hl}
+  Esp.espFolder = nil
+  function Esp.GetEspFolder()
+    if not (Esp.espFolder and Esp.espFolder.Parent) then
+      Esp.espFolder = Instance.new("Folder")
+      Esp.espFolder.Name = "HavenEspLines"
+      if not SafeParentGui(Esp.espFolder) then Esp.espFolder.Parent = workspace end
     end
-    return espFolder
+    return Esp.espFolder
   end
 
   -- نقطة على محور القطعة: 0.5 = أعلاها، -0.5 = أسفلها
-  local function EspJoint(part, yScale) return (part.CFrame * CFrame.new(0, part.Size.Y * yScale, 0)).Position end
+  function Esp.EspJoint(part, yScale) return (part.CFrame * CFrame.new(0, part.Size.Y * yScale, 0)).Position end
   -- المفصل الحقيقي من Attachment اللعبة (كتف، كوع، ركبة...)، ولو ما لقيناه نقدّره من أبعاد القطعة
-  local function RigPoint(part, attName, yScale)
+  function Esp.RigPoint(part, attName, yScale)
     if not part then return nil end
     local att = part:FindFirstChild(attName)
     if att and att:IsA("Attachment") then return att.WorldPosition end
-    return EspJoint(part, yScale)
+    return Esp.EspJoint(part, yScale)
   end
   -- عظام الشخصية كأزواج نقاط (من، إلى) بين المفاصل الفعلية: رقبة، كتف، كوع، يد، حوض، ورك، ركبة، قدم
   -- أسماء القطع تتخزن لكل شخصية مرة وحدة بدل البحث عنها كل فريم
-  local espPartCache = setmetatable({}, {__mode = "k"})
-  local function Part(char, name)
-    local cache = espPartCache[char]
-    if not cache then cache = {} espPartCache[char] = cache end
+  Esp.espPartCache = setmetatable({}, {__mode = "k"})
+  function Esp.Part(char, name)
+    local cache = Esp.espPartCache[char]
+    if not cache then cache = {} Esp.espPartCache[char] = cache end
     local part = cache[name]
     if part and part.Parent == char then return part end
     part = char:FindFirstChild(name)
@@ -2743,96 +2745,96 @@ local HavenOK, HavenErr = pcall(function()
     return part
   end
   -- جدول واحد ينعاد استخدامه: بناء جدول لكل لاعب كل فريم كان يولّد قمامة تثقل الجوال
-  local boneBuf = {}
-  local function GetBones(char)
-    local bones = boneBuf
+  Esp.boneBuf = {}
+  function Esp.GetBones(char)
+    local bones = Esp.boneBuf
     table.clear(bones)
     local function add(a, b) if a and b then table.insert(bones, a) table.insert(bones, b) end end
-    local head = Part(char, "Head")
-    local upper, lower = Part(char, "UpperTorso"), Part(char, "LowerTorso")
+    local head = Esp.Part(char, "Head")
+    local upper, lower = Esp.Part(char, "UpperTorso"), Esp.Part(char, "LowerTorso")
     if upper and lower then -- R15
       -- العمود: رأس > رقبة > خصر > حوض (قبل كان خط واحد يقطع الجسم)
-      local neck = RigPoint(upper, "NeckRigAttachment", 0.5)
-      local waist = RigPoint(upper, "WaistRigAttachment", -0.5)
-      local pelvis = RigPoint(lower, "RootRigAttachment", 0)
+      local neck = Esp.RigPoint(upper, "NeckRigAttachment", 0.5)
+      local waist = Esp.RigPoint(upper, "WaistRigAttachment", -0.5)
+      local pelvis = Esp.RigPoint(lower, "RootRigAttachment", 0)
       add(head and head.Position, neck) add(neck, waist) add(waist, pelvis)
       for _, side in ipairs({"Left", "Right"}) do
-        local upperArm, lowerArm, hand = Part(char, side .. "UpperArm"), Part(char, side .. "LowerArm"), Part(char, side .. "Hand")
+        local upperArm, lowerArm, hand = Esp.Part(char, side .. "UpperArm"), Esp.Part(char, side .. "LowerArm"), Esp.Part(char, side .. "Hand")
         if upperArm and lowerArm then
           -- الكتف من قطعة الصدر نفسها: المكان الصح للمفصل بدل أعلى الذراع
-          local shoulder = RigPoint(upper, side .. "ShoulderRigAttachment", 0.4) or EspJoint(upperArm, 0.5)
-          local elbow = RigPoint(upperArm, side .. "ElbowRigAttachment", -0.5)
-          local wrist = RigPoint(lowerArm, side .. "WristRigAttachment", -0.5)
+          local shoulder = Esp.RigPoint(upper, side .. "ShoulderRigAttachment", 0.4) or Esp.EspJoint(upperArm, 0.5)
+          local elbow = Esp.RigPoint(upperArm, side .. "ElbowRigAttachment", -0.5)
+          local wrist = Esp.RigPoint(lowerArm, side .. "WristRigAttachment", -0.5)
           add(neck, shoulder) add(shoulder, elbow) add(elbow, wrist)
           add(wrist, hand and hand.Position or wrist)
         end
-        local upperLeg, lowerLeg, foot = Part(char, side .. "UpperLeg"), Part(char, side .. "LowerLeg"), Part(char, side .. "Foot")
+        local upperLeg, lowerLeg, foot = Esp.Part(char, side .. "UpperLeg"), Esp.Part(char, side .. "LowerLeg"), Esp.Part(char, side .. "Foot")
         if upperLeg and lowerLeg then
-          local hip = RigPoint(lower, side .. "HipRigAttachment", -0.5) or EspJoint(upperLeg, 0.5)
-          local knee = RigPoint(upperLeg, side .. "KneeRigAttachment", -0.5)
-          local ankle = RigPoint(lowerLeg, side .. "AnkleRigAttachment", -0.5)
+          local hip = Esp.RigPoint(lower, side .. "HipRigAttachment", -0.5) or Esp.EspJoint(upperLeg, 0.5)
+          local knee = Esp.RigPoint(upperLeg, side .. "KneeRigAttachment", -0.5)
+          local ankle = Esp.RigPoint(lowerLeg, side .. "AnkleRigAttachment", -0.5)
           add(pelvis, hip) add(hip, knee) add(knee, ankle)
           add(ankle, foot and foot.Position or ankle)
         end
       end
     else -- R6
-      local torso = Part(char, "Torso")
+      local torso = Esp.Part(char, "Torso")
       if not torso then return bones end
-      local neck, pelvis = EspJoint(torso, 0.5), EspJoint(torso, -0.5)
+      local neck, pelvis = Esp.EspJoint(torso, 0.5), Esp.EspJoint(torso, -0.5)
       add(head and head.Position, neck) add(neck, pelvis)
       for _, side in ipairs({"Left", "Right"}) do
-        local arm, leg = Part(char, side .. " Arm"), Part(char, side .. " Leg")
-        if arm then local shoulder = EspJoint(arm, 0.5) add(neck, shoulder) add(shoulder, EspJoint(arm, -0.5)) end
-        if leg then local hip = EspJoint(leg, 0.5) add(pelvis, hip) add(hip, EspJoint(leg, -0.5)) end
+        local arm, leg = Esp.Part(char, side .. " Arm"), Esp.Part(char, side .. " Leg")
+        if arm then local shoulder = Esp.EspJoint(arm, 0.5) add(neck, shoulder) add(shoulder, Esp.EspJoint(arm, -0.5)) end
+        if leg then local hip = Esp.EspJoint(leg, 0.5) add(pelvis, hip) add(hip, Esp.EspJoint(leg, -0.5)) end
       end
     end
     return bones
   end
 
   -- عنصر رسم جاهز بالفهرس المطلوب (ينبنى مرة وحدة وينعاد استخدامه)
-  local function EspAdorn(store, index, class, zIndex)
+  function Esp.EspAdorn(store, index, class, zIndex)
     local obj = store[index]
     if not obj or not obj.Parent then
       obj = Instance.new(class)
       obj.Adornee = workspace.Terrain obj.AlwaysOnTop = true obj.ZIndex = zIndex
-      obj.Parent = GetEspFolder()
+      obj.Parent = Esp.GetEspFolder()
       store[index] = obj
     end
     return obj
   end
-  local function EspHideFrom(store, firstIndex)
+  function Esp.EspHideFrom(store, firstIndex)
     for index = firstIndex, #store do store[index].Visible = false end
   end
 
   -- كل فريم: الهيكل بين المفاصل (لازم كل فريم عشان يمشي مع حركة اللاعب)
   -- الشكل: خط بلون الدور، تحته خط أسود أعرض عشان يبان على أي خلفية، ونقطة بكل مفصل
-  local function RenderSkeletons()
-    local thickness = tonumber(EspOpt("EspThickness", 2)) or 2
-    local outlineOn = EspOpt("EspSkeletonOutline", true)
-    local jointsOn = EspOpt("EspSkeletonJoints", true)
+  function Esp.RenderSkeletons()
+    local thickness = tonumber(Esp.EspOpt("EspThickness", 2)) or 2
+    local outlineOn = Esp.EspOpt("EspSkeletonOutline", true)
+    local jointsOn = Esp.EspOpt("EspSkeletonJoints", true)
     local dotRadius = 0.09 + thickness * 0.03
-    for player, store in pairs(espLines) do
-      local color, char = espState[player], player.Character
-      local bones = (color and char) and GetBones(char) or {}
+    for player, store in pairs(Esp.espLines) do
+      local color, char = Esp.espState[player], player.Character
+      local bones = (color and char) and Esp.GetBones(char) or {}
       local count = #bones / 2
       for index = 1, count do
         local from, to = bones[index * 2 - 1], bones[index * 2]
         local length = (to - from).Magnitude
         if length > 0.01 then
           local cf = CFrame.lookAt(from, to)
-          local line = EspAdorn(store.line, index, "LineHandleAdornment", 6)
+          local line = Esp.EspAdorn(store.line, index, "LineHandleAdornment", 6)
           line.CFrame = cf line.Length = length line.Color3 = color line.Thickness = thickness line.Visible = true
           if outlineOn then
-            local edge = EspAdorn(store.edge, index, "LineHandleAdornment", 5)
+            local edge = Esp.EspAdorn(store.edge, index, "LineHandleAdornment", 5)
             edge.CFrame = cf edge.Length = length edge.Color3 = Color3.new(0, 0, 0)
             edge.Thickness = thickness + 2 edge.Transparency = 0.15 edge.Visible = true
           end
           if jointsOn then
             -- نقطة على نهاية كل عظمة + نقطة على الرأس (بداية أول عظمة)
-            local dot = EspAdorn(store.dot, index, "SphereHandleAdornment", 7)
+            local dot = Esp.EspAdorn(store.dot, index, "SphereHandleAdornment", 7)
             dot.CFrame = CFrame.new(to) dot.Radius = dotRadius dot.Color3 = color dot.Visible = true
             if index == 1 then
-              local headDot = EspAdorn(store.dot, count + 1, "SphereHandleAdornment", 7)
+              local headDot = Esp.EspAdorn(store.dot, count + 1, "SphereHandleAdornment", 7)
               headDot.CFrame = CFrame.new(from) headDot.Radius = dotRadius * 1.6 headDot.Color3 = color headDot.Visible = true
             end
           end
@@ -2842,18 +2844,18 @@ local HavenOK, HavenErr = pcall(function()
           if store.dot[index] then store.dot[index].Visible = false end
         end
       end
-      EspHideFrom(store.line, count + 1)
-      EspHideFrom(store.edge, outlineOn and count + 1 or 1)
-      EspHideFrom(store.dot, jointsOn and count + 2 or 1)
+      Esp.EspHideFrom(store.line, count + 1)
+      Esp.EspHideFrom(store.edge, outlineOn and count + 1 or 1)
+      Esp.EspHideFrom(store.dot, jointsOn and count + 2 or 1)
     end
   end
 
   -- كل عناصر اللاعب تتبنى مرة وحدة وتعيش بمجلد الهب، والإظهار/الإخفاء بـ Enabled فقط:
   -- قبل كانت تتبنى وتنمسح جوّا رأس اللاعب كل مرة، فتروح مع كل موت وتثقل اللعبة
-  local function EspObjects(player)
-    local existing = espGui[player]
+  function Esp.EspObjects(player)
+    local existing = Esp.espGui[player]
     if existing and existing.box.Parent then return existing end
-    local folder = GetEspFolder()
+    local folder = Esp.GetEspFolder()
 
     local box = Instance.new("BillboardGui")
     box.Name = "HavenBox" box.Size = UDim2.new(4.2, 0, 6, 0) box.StudsOffset = Vector3.new(0, -0.2, 0)
@@ -2880,26 +2882,26 @@ local HavenOK, HavenErr = pcall(function()
     hl.Parent = folder
 
     local objects = {box = box, fill = fill, edge = edge, barBg = barBg, bar = bar, tag = tag, label = label, hl = hl}
-    espGui[player] = objects
+    Esp.espGui[player] = objects
     return objects
   end
 
-  local function EspDestroy(player)
-    local objects = espGui[player]
+  function Esp.EspDestroy(player)
+    local objects = Esp.espGui[player]
     if not objects then return end
     for _, key in ipairs({"box", "tag", "hl"}) do pcall(function() objects[key]:Destroy() end) end
-    espGui[player] = nil
+    Esp.espGui[player] = nil
   end
 
   -- كل 0.2 ثانية: يحدد مين يظهر له ESP ولونه، ويحدّث المربع والبطاقة
-  local function UpdateChams()
+  function Esp.UpdateChams()
     local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local showMode = EspOpt("EspShow", "Everyone")
-    for player, lines in pairs(espLines) do
+    local showMode = Esp.EspOpt("EspShow", "Everyone")
+    for player, lines in pairs(Esp.espLines) do
       if player.Parent == nil then
         for _, store in pairs(lines) do for _, obj in ipairs(store) do pcall(function() obj:Destroy() end) end end
-        espLines[player] = nil espState[player] = nil
-        EspDestroy(player)
+        Esp.espLines[player] = nil Esp.espState[player] = nil
+        Esp.EspDestroy(player)
       end
     end
     for _, player in pairs(Players:GetPlayers()) do
@@ -2912,46 +2914,46 @@ local HavenOK, HavenErr = pcall(function()
         local backpack = player:FindFirstChild("Backpack")
         local function has(tool) return (backpack and backpack:FindFirstChild(tool)) or (char and char:FindFirstChild(tool)) end
         local key, color
-        if not IsPlayerAlive(player, roles) then key, color = "Dead", EspColors.White
-        elseif role == "Murderer" or has("Knife") then key, color = "Murderer", EspColor("EspMurdererColor", "Red")
-        elseif role == "Sheriff" or role == "Hero" or has("Gun") then key, color = "Sheriff", EspColor("EspSheriffColor", "Blue")
-        else key, color = "Innocent", EspColor("EspInnocentColor", "Green") end
+        if not IsPlayerAlive(player, roles) then key, color = "Dead", Esp.EspColors.White
+        elseif role == "Murderer" or has("Knife") then key, color = "Murderer", Esp.EspColor("EspMurdererColor", "Red")
+        elseif role == "Sheriff" or role == "Hero" or has("Gun") then key, color = "Sheriff", Esp.EspColor("EspSheriffColor", "Blue")
+        else key, color = "Innocent", Esp.EspColor("EspInnocentColor", "Green") end
         local visible = head ~= nil and (
           showMode == "Everyone"
           or (showMode == "Murderer" and key == "Murderer")
           or (showMode == "Sheriff" and key == "Sheriff")
           or (showMode == "Murderer + Sheriff" and (key == "Murderer" or key == "Sheriff"))
           or (showMode == "Innocents" and key == "Innocent")
-          or (showMode == "Chosen Player" and player.Name == EspOpt("EspPlayer", nil)))
+          or (showMode == "Chosen Player" and player.Name == Esp.EspOpt("EspPlayer", nil)))
 
         -- الهيكل
-        espLines[player] = espLines[player] or {line = {}, edge = {}, dot = {}}
-        if visible and EspOpt("EspSkeleton", true) then
-          local pick = EspOpt("EspSkeletonColor", "Black")
-          espState[player] = (pick == "Role Color") and color or EspColors[pick] or EspColors.Black
+        Esp.espLines[player] = Esp.espLines[player] or {line = {}, edge = {}, dot = {}}
+        if visible and Esp.EspOpt("EspSkeleton", true) then
+          local pick = Esp.EspOpt("EspSkeletonColor", "Black")
+          Esp.espState[player] = (pick == "Role Color") and color or Esp.EspColors[pick] or Esp.EspColors.Black
         else
-          espState[player] = nil
+          Esp.espState[player] = nil
         end
 
         -- بعيد عن مدى الإظهار؟ نطفي كل شي عنه (أهدأ للشاشة وأخف على الجهاز)
         local dist = (myRoot and head) and math.floor((head.Position - myRoot.Position).Magnitude) or 0
-        local maxDist = tonumber(EspOpt("EspMaxDistance", 0)) or 0
+        local maxDist = tonumber(Esp.EspOpt("EspMaxDistance", 0)) or 0
         if maxDist > 0 and dist > maxDist then visible = false end
-        if key == "Dead" and not EspOpt("EspShowDead", false) then visible = false end
-        if not visible then espState[player] = nil end
+        if key == "Dead" and not Esp.EspOpt("EspShowDead", false) then visible = false end
+        if not visible then Esp.espState[player] = nil end
 
         -- ما نبني عناصر إلا للي راح يظهر فعلاً؛ ولو كانت مبنية من قبل نطفيها
-        local objects = (visible and EspObjects(player)) or espGui[player]
+        local objects = (visible and Esp.EspObjects(player)) or Esp.espGui[player]
         if objects then
           local hum = char and char:FindFirstChildOfClass("Humanoid")
           local health = hum and math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1) or 0
 
           -- المربع: حجمه بالستد فيصغر ويكبر مع المسافة، ومعه شريط صحة
-          if visible and head and EspOpt("EspBox", true) then
+          if visible and head and Esp.EspOpt("EspBox", true) then
             objects.box.Adornee = (char and char:FindFirstChild("HumanoidRootPart")) or head
             objects.box.Enabled = true
             objects.fill.BackgroundColor3 = color
-            objects.fill.BackgroundTransparency = (EspOpt("EspBoxStyle", "Filled") == "Filled") and 0.65 or 1
+            objects.fill.BackgroundTransparency = (Esp.EspOpt("EspBoxStyle", "Filled") == "Filled") and 0.65 or 1
             objects.edge.Color = color
             objects.barBg.Visible = hum ~= nil
             objects.bar.Size = UDim2.fromScale(1, health)
@@ -2961,7 +2963,7 @@ local HavenOK, HavenErr = pcall(function()
           end
 
           -- توهج الجسم: يبان من ورا الجدران
-          if visible and char and EspOpt("EspChams", false) then
+          if visible and char and Esp.EspOpt("EspChams", false) then
             objects.hl.Adornee = char
             objects.hl.FillColor = color
             objects.hl.OutlineColor = color
@@ -2971,7 +2973,7 @@ local HavenOK, HavenErr = pcall(function()
           end
 
           -- البطاقة: الاسم فوق، وتحته الدور والمسافة
-          if visible and head and EspOpt("EspTag", true) then
+          if visible and head and Esp.EspOpt("EspTag", true) then
             objects.tag.Adornee = head
             objects.tag.Enabled = true
             objects.label.Text = player.Name .. "\n" .. string.upper(key) .. "  |  " .. dist .. " studs"
@@ -2984,7 +2986,7 @@ local HavenOK, HavenErr = pcall(function()
     end
   end
 
-  local function CreateNameESP(player)
+  function Esp.CreateNameESP(player)
     if player ~= LocalPlayer and player.Character then
       local head = player.Character:FindFirstChild("Head")
       if head and not head:FindFirstChild("UsernameTag") then
@@ -2996,12 +2998,12 @@ local HavenOK, HavenErr = pcall(function()
     end
   end
 
-  local function ClearESP()
+  function Esp.ClearESP()
     for k, v in pairs(tbl) do if v then v:Destroy() end tbl[k] = nil end
-    for _, lines in pairs(espLines) do for _, store in pairs(lines) do for _, obj in ipairs(store) do pcall(function() obj:Destroy() end) end end end
-    for player in pairs(espGui) do EspDestroy(player) end
-    espLines, espState, espGui = {}, {}, {}
-    if espFolder then pcall(function() espFolder:Destroy() end) espFolder = nil end
+    for _, lines in pairs(Esp.espLines) do for _, store in pairs(lines) do for _, obj in ipairs(store) do pcall(function() obj:Destroy() end) end end end
+    for player in pairs(Esp.espGui) do Esp.EspDestroy(player) end
+    Esp.espLines, Esp.espState, Esp.espGui = {}, {}, {}
+    if Esp.espFolder then pcall(function() Esp.espFolder:Destroy() end) Esp.espFolder = nil end
     for _, p in pairs(Players:GetPlayers()) do
       local head = p.Character and p.Character:FindFirstChild("Head")
       if head and head:FindFirstChild("UsernameTag") then head.UsernameTag:Destroy() end
@@ -4123,11 +4125,11 @@ local HavenOK, HavenErr = pcall(function()
       local render = RunService.RenderStepped:Connect(function()
         if os.clock() - lastSkeleton < 1 / 60 then return end
         lastSkeleton = os.clock()
-        pcall(RenderSkeletons)
+        pcall(Esp.RenderSkeletons)
       end)
-      repeat pcall(UpdateChams) task.wait(0.2) until not Options.Chams:GetValue()
+      repeat pcall(Esp.UpdateChams) task.wait(0.2) until not Options.Chams:GetValue()
       render:Disconnect()
-      ClearESP()
+      Esp.ClearESP()
     end
   end)
 
@@ -4149,9 +4151,9 @@ local HavenOK, HavenErr = pcall(function()
   shared.Visual:Toggle("EspSkeletonOutline", "Skeleton Outline", {State = true}, function() end)
   shared.Visual:Toggle("EspSkeletonJoints", "Skeleton Joints", {State = true}, function() end)
   shared.Visual:Dropdown({Name = "Skeleton Color", Multi = false, Required = true, Options = {"Black", "White", "Role Color", "Red", "Blue", "Green", "Yellow", "Orange", "Purple", "Pink", "Cyan"}, Default = 1, Callback = function() end}, "EspSkeletonColor")
-  shared.Visual:Dropdown({Name = "Murderer Color", Multi = false, Required = true, Options = EspColorNames, Default = 1, Callback = function() end}, "EspMurdererColor")
-  shared.Visual:Dropdown({Name = "Sheriff Color", Multi = false, Required = true, Options = EspColorNames, Default = 2, Callback = function() end}, "EspSheriffColor")
-  shared.Visual:Dropdown({Name = "Innocent Color", Multi = false, Required = true, Options = EspColorNames, Default = 3, Callback = function() end}, "EspInnocentColor")
+  shared.Visual:Dropdown({Name = "Murderer Color", Multi = false, Required = true, Options = Esp.EspColorNames, Default = 1, Callback = function() end}, "EspMurdererColor")
+  shared.Visual:Dropdown({Name = "Sheriff Color", Multi = false, Required = true, Options = Esp.EspColorNames, Default = 2, Callback = function() end}, "EspSheriffColor")
+  shared.Visual:Dropdown({Name = "Innocent Color", Multi = false, Required = true, Options = Esp.EspColorNames, Default = 3, Callback = function() end}, "EspInnocentColor")
 
   shared.Visual:Toggle("GunDropCham", "Gun Drop ESP", function(arg1)
     while arg1 and Options.GunDropCham:GetValue() do
@@ -4292,9 +4294,9 @@ local HavenOK, HavenErr = pcall(function()
   shared.Visual:Toggle("Names", "Name ESP", function()
     while Options.Names:GetValue() do
       task.wait(0.5)
-      for _, p in pairs(Players:GetPlayers()) do if p.Character then CreateNameESP(p) end end
+      for _, p in pairs(Players:GetPlayers()) do if p.Character then Esp.CreateNameESP(p) end end
     end
-    ClearESP()
+    Esp.ClearESP()
   end)
 
   shared.Visual:Divider()
@@ -5131,7 +5133,7 @@ local HavenOK, HavenErr = pcall(function()
     pcall(function() local gunDrop = GetGunDrop() if gunDrop and gunDrop:FindFirstChild("GunESP") then gunDrop.GunESP:Destroy() end end)
     pcall(function() local chair = workspace:FindFirstChild("invischair") if chair then chair:Destroy() end end)
     pcall(DisableFloat)
-    pcall(ClearESP)
+    pcall(Esp.ClearESP)
     pcall(function() RunService:Set3dRenderingEnabled(true) end)
     pcall(function()
       local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
@@ -5154,18 +5156,24 @@ local HavenOK, HavenErr = pcall(function()
   -- ============================================================================
   local HavenRejoin = {}
   do
-    local TeleportService = Services.TeleportService
-    local PlaceId, MyJobId = game.PlaceId, game.JobId
+    local Srv = {
+      Path = "HavenHub/self.lua",
+      Mark = "HavenHubStartedJob", -- بصمة تميز سورس هذا السكربت عن أي ملف ثاني
+      -- نسخة السكربت المرفوعة: نجيبها لو المنفذ ما سمح لنا نقرا سورس أنفسنا (بدّل الرابط لو نقلت الملف)
+      Url = "https://raw.githubusercontent.com/gjsar591-alt/Evilhereeee/refs/heads/claude/fervent-volta-w64bf7/HavenHub-auto-restart.lua",
+      FileOK = type(writefile) == "function" and type(readfile) == "function" and type(isfile) == "function"
+    }
+    Srv.Place, Srv.Job = game.PlaceId, game.JobId
 
     -- دالة من البيئة العامة بأمان (بعض المنفذات تحمي __index)
-    local function Global(name)
+    function Srv.Global(name)
       local ok, value = pcall(function() return getgenv()[name] end)
       if ok and value ~= nil then return value end
       ok, value = pcall(function() return _G[name] end)
       if ok then return value end
     end
-    local function MemberOf(holder, key)
-      local t = Global(holder)
+    function Srv.MemberOf(holder, key)
+      local t = Srv.Global(holder)
       if type(t) == "table" then
         local ok, fn = pcall(function() return t[key] end)
         if ok and type(fn) == "function" then return fn end
@@ -5173,18 +5181,18 @@ local HavenOK, HavenErr = pcall(function()
     end
 
     -- إعادة التشغيل بعد الانتقال: كل منفذ يسمي الدالة باسم مختلف
-    local QueueFn = Global("queue_on_teleport") or Global("queueonteleport")
-      or MemberOf("syn", "queue_on_teleport") or MemberOf("fluxus", "queue_on_teleport")
-    if type(QueueFn) ~= "function" then QueueFn = nil end
+    Srv.Queue = Srv.Global("queue_on_teleport") or Srv.Global("queueonteleport")
+      or Srv.MemberOf("syn", "queue_on_teleport") or Srv.MemberOf("fluxus", "queue_on_teleport")
+    if type(Srv.Queue) ~= "function" then Srv.Queue = nil end
 
-    -- طلب HTTP لقائمة السيرفرات: request أو ما يعادلها، وإلا HttpGet
-    local RawRequest = Global("request") or Global("http_request")
-      or MemberOf("syn", "request") or MemberOf("http", "request") or MemberOf("fluxus", "request")
-    if type(RawRequest) ~= "function" then RawRequest = nil end
+    -- طلب HTTP لقائمة السيرفرات: request أو ما يعادلها، وإلا Srv.Http
+    Srv.Req = Srv.Global("request") or Srv.Global("http_request")
+      or Srv.MemberOf("syn", "request") or Srv.MemberOf("http", "request") or Srv.MemberOf("fluxus", "request")
+    if type(Srv.Req) ~= "function" then Srv.Req = nil end
 
-    local function HttpGet(url)
-      if RawRequest then
-        local ok, res = pcall(RawRequest, {Url = url, Method = "GET"})
+    function Srv.Http(url)
+      if Srv.Req then
+        local ok, res = pcall(Srv.Req, {Url = url, Method = "GET"})
         if ok and type(res) == "table" and type(res.Body) == "string"
           and (res.StatusCode == nil or res.StatusCode == 200) then return res.Body end
       end
@@ -5196,13 +5204,6 @@ local HavenOK, HavenErr = pcall(function()
     -- ====== نسخة السكربت عن نفسه ======
     -- السكربت ينسخ سورسه لملف مرة واحدة، وبعد الريجوين يشتغل من الملف نفسه بدون أي رابط
     -- (كل شي بجدول واحد: السكربت كله دالة وحدة والمتغيرات المنفصلة لها حد في Luau)
-    local Srv = {
-      Path = "HavenHub/self.lua",
-      Mark = "HavenHubStartedJob", -- بصمة تميز سورس هذا السكربت عن أي ملف ثاني
-      -- نسخة السكربت المرفوعة: نجيبها لو المنفذ ما سمح لنا نقرا سورس أنفسنا (بدّل الرابط لو نقلت الملف)
-      Url = "https://raw.githubusercontent.com/gjsar591-alt/Evilhereeee/refs/heads/claude/fervent-volta-w64bf7/HavenHub-auto-restart.lua",
-      FileOK = type(writefile) == "function" and type(readfile) == "function" and type(isfile) == "function"
-    }
 
     function Srv.Saved()
       if not Srv.FileOK then return nil end
@@ -5227,7 +5228,7 @@ local HavenOK, HavenErr = pcall(function()
     function Srv.Capture()
       if not Srv.FileOK then return false end
       -- 1) سورس حطّه المنفذ أو سطر إعادة التشغيل بالبيئة العامة (أسرع طريقة وأدقها)
-      if Srv.Store(Global("HavenHubSource")) then return true end
+      if Srv.Store(Srv.Global("HavenHubSource")) then return true end
       -- 2) اسم القطعة: بعض المنفذات تخلي chunkname نفس السورس
       for level = 1, 6 do
         local ok, name = pcall(function() return debug.info(level, "s") end)
@@ -5235,7 +5236,7 @@ local HavenOK, HavenErr = pcall(function()
       end
       if Srv.Saved() then return true end -- عندنا نسخة من قبل: ما نحتاج نفحص شي
       -- 3) النسخة المرفوعة: أسرع وأضمن من فحص الملفات (خصوصاً على الجوال)
-      if Srv.Store(HttpGet(Srv.Url)) then return true end
+      if Srv.Store(Srv.Http(Srv.Url)) then return true end
       -- 4) آخر حل: نفحص ملفات المنفذ وندور على اللي فيها بصمة السكربت
       if type(listfiles) == "function" then
         local checked = 0
@@ -5257,7 +5258,7 @@ local HavenOK, HavenErr = pcall(function()
     task.spawn(Srv.Capture) -- أول ما يشتغل السكربت: نجهز النسخة قبل أي ريجوين
 
     -- سطر تشغيل السكربت بعد الريجوين: من النسخة اللي حفظها السكربت عن نفسه
-    local function GetLoader()
+    function Srv.Loader()
       -- HavenHubSource ينحفظ بالبيئة عشان النسخة الجديدة تقدر تنسخ نفسها بدورها (ريجوين بعد ريجوين)
       if Srv.Saved() then
         return 'local e = (getgenv and getgenv() or _G) local f = readfile("' .. Srv.Path
@@ -5269,8 +5270,8 @@ local HavenOK, HavenErr = pcall(function()
 
     -- الحالة تنتقل جوّا نص الـ queue نفسه: لا ملف جديد ولا متغير يبقى بالذاكرة
     -- (ملف الإعدادات الأصلي يبقى خط ثاني للمنفذات اللي ما عندها queue)
-    local function BuildQueue()
-      local loader = GetLoader()
+    function Srv.Payload()
+      local loader = Srv.Loader()
       if not loader then return nil end
       local ok, state = pcall(function() return HttpService:JSONEncode(HavenLib:ExportState()) end)
       if ok and type(state) == "string" and #state < 100000 then
@@ -5279,14 +5280,14 @@ local HavenOK, HavenErr = pcall(function()
       return loader
     end
 
-    local function Prepare()
+    function Srv.Prepare()
       pcall(function() HavenLib:SaveConfig(game.PlaceId) end)
-      local payload = BuildQueue()
-      if payload and QueueFn then pcall(QueueFn, payload) return true end
+      local payload = Srv.Payload()
+      if payload and Srv.Queue then pcall(Srv.Queue, payload) return true end
       return false
     end
 
-    local function Tell(title, text)
+    function Srv.Tell(title, text)
       pcall(function() Window:Notify({Title = title, Description = text, Duration = 5}) end)
     end
 
@@ -5294,9 +5295,9 @@ local HavenOK, HavenErr = pcall(function()
     function Srv.Scan(maxPages, visit)
       local cursor, page = "", 0
       repeat
-        local url = "https://games.roblox.com/v1/games/" .. tostring(PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
+        local url = "https://games.roblox.com/v1/games/" .. tostring(Srv.Place) .. "/servers/Public?sortOrder=Asc&limit=100"
         if cursor ~= "" then url = url .. "&cursor=" .. cursor end
-        local body = HttpGet(url)
+        local body = Srv.Http(url)
         if not body then break end
         local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
         if not ok or type(data) ~= "table" or type(data.data) ~= "table" then break end
@@ -5314,7 +5315,7 @@ local HavenOK, HavenErr = pcall(function()
       local list, seen = {}, {}
       Srv.Scan(3, function(s)
         local playing, maxPlayers = tonumber(s.playing), tonumber(s.maxPlayers) or 0
-        if type(s.id) == "string" and s.id ~= MyJobId and not seen[s.id]
+        if type(s.id) == "string" and s.id ~= Srv.Job and not seen[s.id]
           and playing and playing > 0 and (maxPlayers == 0 or playing < maxPlayers) then
           seen[s.id] = true
           table.insert(list, {id = s.id, playing = playing})
@@ -5332,15 +5333,15 @@ local HavenOK, HavenErr = pcall(function()
       return (jobId:sub(1, 4) .. "-" .. jobId:sub(15, 18)):lower()
     end
 
-    local busy, failedJobs = false, {}
+    Srv.busy, Srv.failed = false, {}
 
     -- انتقال واحد: يرجع true لو فشل الانتقال (عشان نجرب السيرفر اللي بعده)
-    local function TryTeleport(jobId)
+    function Srv.Teleport(jobId)
       local failed = false
-      local conn = TeleportService.TeleportInitFailed:Connect(function() failed = true end)
+      local conn = Services.TeleportService.TeleportInitFailed:Connect(function() failed = true end)
       local ok = pcall(function()
-        if jobId then TeleportService:TeleportToPlaceInstance(PlaceId, jobId, LocalPlayer)
-        else TeleportService:Teleport(PlaceId, LocalPlayer) end
+        if jobId then Services.TeleportService:TeleportToPlaceInstance(Srv.Place, jobId, LocalPlayer)
+        else Services.TeleportService:Teleport(Srv.Place, LocalPlayer) end
       end)
       if ok then
         local started = os.clock()
@@ -5352,40 +5353,40 @@ local HavenOK, HavenErr = pcall(function()
 
     -- ريجوين: نفس السيرفر إن قدرنا، وإلا أي سيرفر
     function HavenRejoin:Rejoin(reason)
-      if busy then return end
-      busy = true
+      if Srv.busy then return end
+      Srv.busy = true
       task.spawn(function()
         Mark("rejoin: " .. tostring(reason or "manual"), true)
-        local queued = Prepare()
-        Tell("REJOINING", queued and ("Rejoining " .. Srv.Short(MyJobId) .. ". The script will come back by itself with the same settings.")
+        local queued = Srv.Prepare()
+        Srv.Tell("REJOINING", queued and ("Rejoining " .. Srv.Short(Srv.Job) .. ". The script will come back by itself with the same settings.")
           or "Rejoining now. This executor would not let the script copy itself, so it will not come back.")
         task.wait(0.6)
-        if TryTeleport(MyJobId) then TryTeleport(nil) end
-        busy = false
+        if Srv.Teleport(Srv.Job) then Srv.Teleport(nil) end
+        Srv.busy = false
       end)
     end
 
     -- انتقال متدرج: من السيرفرات الأقل أعضاء للأكثر، وإلا ريجوين عادي
     function HavenRejoin:Hop(reason)
-      if busy then return end
-      busy = true
+      if Srv.busy then return end
+      Srv.busy = true
       task.spawn(function()
         Mark("server hop: " .. tostring(reason or "manual"), true)
-        local queued = Prepare()
-        Tell("SERVER HOP", queued and (tostring(reason or "Moving to another server") .. ".")
+        local queued = Srv.Prepare()
+        Srv.Tell("SERVER HOP", queued and (tostring(reason or "Moving to another server") .. ".")
           or "Hopping now. This executor would not let the script copy itself, so it will not come back.")
         local servers = Srv.List()
         for _, s in ipairs(servers) do
-          if not failedJobs[s.id] then
-            failedJobs[s.id] = true
-            if not TryTeleport(s.id) then busy = false return end
+          if not Srv.failed[s.id] then
+            Srv.failed[s.id] = true
+            if not Srv.Teleport(s.id) then Srv.busy = false return end
             task.wait(1)
           end
         end
         -- ما نفع ولا سيرفر (أو ما قدرنا نجيب القائمة): ريجوين عادي يحطنا بسيرفر فيه ناس
-        if #servers == 0 then Tell("SERVER HOP", "Could not read the server list. Doing a normal rejoin.") end
-        TryTeleport(nil)
-        busy = false
+        if #servers == 0 then Srv.Tell("SERVER HOP", "Could not read the server list. Doing a normal rejoin.") end
+        Srv.Teleport(nil)
+        Srv.busy = false
       end)
     end
 
@@ -5393,9 +5394,9 @@ local HavenOK, HavenErr = pcall(function()
     local rejoinSection = shared.tabs.Settings:Section({Side = "Left"})
     rejoinSection:SubLabel({Text = "REJOIN & SERVERS"})
     rejoinSection:Button({Name = "Copy My Server ID", Callback = function()
-      local id = Srv.Short(MyJobId)
+      local id = Srv.Short(Srv.Job)
       local copied = pcall(function() if setclipboard then setclipboard(id) elseif toclipboard then toclipboard(id) end end)
-      Tell("SERVER ID", id .. (copied and " (copied)" or ""))
+      Srv.Tell("SERVER ID", id .. (copied and " (copied)" or ""))
     end})
     rejoinSection:Toggle("AutoRejoinKick", "Auto Rejoin When Kicked", {State = true})
     rejoinSection:Toggle("AutoHopEmpty", "Hop When Server Is Empty", {State = false})
@@ -5424,11 +5425,11 @@ local HavenOK, HavenErr = pcall(function()
 
     -- ====== الطرد أو قطع الاتصال: نرجع فوراً والسكربت يرجع معنا ======
     -- مصدرين عشان يشتغل على كل الأجهزة: نافذة الخطأ في CoreGui، وانقطاع NetworkClient
-    local kickHandled = false
-    local function OnDisconnected(why)
-      if kickHandled or busy then return end
+    Srv.kicked = false
+    function Srv.OnDisconnect(why)
+      if Srv.kicked or Srv.busy then return end
       if not (Options.AutoRejoinKick and Options.AutoRejoinKick:GetValue()) then return end
-      kickHandled = true
+      Srv.kicked = true
       HavenRejoin:Rejoin(why)
     end
     task.spawn(function()
@@ -5439,7 +5440,7 @@ local HavenOK, HavenErr = pcall(function()
       end)
       if not overlay then return end
       local function Check(child)
-        if child.Name == "ErrorPrompt" then task.delay(0.5, function() OnDisconnected("kicked") end) end
+        if child.Name == "ErrorPrompt" then task.delay(0.5, function() Srv.OnDisconnect("kicked") end) end
       end
       -- الاتصال ينحفظ مع الباقي عشان ينفصل لو المستخدم سكّر الهب
       pcall(function() table.insert(HavenConnections, overlay.ChildAdded:Connect(Check)) end)
@@ -5447,13 +5448,13 @@ local HavenOK, HavenErr = pcall(function()
     end)
     pcall(function()
       table.insert(HavenConnections, Services.NetworkClient.ChildRemoved:Connect(function()
-        task.delay(0.5, function() OnDisconnected("disconnected") end)
+        task.delay(0.5, function() Srv.OnDisconnect("disconnected") end)
       end))
     end)
 
     task.delay(8, function()
-      if not QueueFn then
-        Tell("REJOIN", "This executor has no queue_on_teleport, so the script cannot restart itself after a rejoin.")
+      if not Srv.Queue then
+        Srv.Tell("REJOIN", "This executor has no queue_on_teleport, so the script cannot restart itself after a rejoin.")
       end
     end)
   end
