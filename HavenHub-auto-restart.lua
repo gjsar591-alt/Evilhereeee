@@ -102,6 +102,8 @@ local HavenOK, HavenErr = pcall(function()
     ["Farm Speed"] = "سرعة الفارم",
     ["Collect Radius"] = "مدى الالتقاط",
     ["Chams (Body Glow)"] = "توهج الجسم",
+    ["Skeleton Outline"] = "حدود الهيكل",
+    ["Skeleton Joints"] = "نقاط المفاصل",
     ["Show Dead Players"] = "إظهار الموتى",
     ["Max Distance (0 = All)"] = "أقصى مسافة (0 = الكل)",
     ["Info Tag (Name / Role / Distance)"] = "بطاقة المعلومات",
@@ -2721,6 +2723,13 @@ local HavenOK, HavenErr = pcall(function()
 
   -- نقطة على محور القطعة: 0.5 = أعلاها، -0.5 = أسفلها
   local function EspJoint(part, yScale) return (part.CFrame * CFrame.new(0, part.Size.Y * yScale, 0)).Position end
+  -- المفصل الحقيقي من Attachment اللعبة (كتف، كوع، ركبة...)، ولو ما لقيناه نقدّره من أبعاد القطعة
+  local function RigPoint(part, attName, yScale)
+    if not part then return nil end
+    local att = part:FindFirstChild(attName)
+    if att and att:IsA("Attachment") then return att.WorldPosition end
+    return EspJoint(part, yScale)
+  end
   -- عظام الشخصية كأزواج نقاط (من، إلى) بين المفاصل الفعلية: رقبة، كتف، كوع، يد، حوض، ورك، ركبة، قدم
   -- أسماء القطع تتخزن لكل شخصية مرة وحدة بدل البحث عنها كل فريم
   local espPartCache = setmetatable({}, {__mode = "k"})
@@ -2742,18 +2751,28 @@ local HavenOK, HavenErr = pcall(function()
     local head = Part(char, "Head")
     local upper, lower = Part(char, "UpperTorso"), Part(char, "LowerTorso")
     if upper and lower then -- R15
-      local neck, pelvis = EspJoint(upper, 0.5), lower.Position
-      add(head and head.Position, neck) add(neck, pelvis)
+      -- العمود: رأس > رقبة > خصر > حوض (قبل كان خط واحد يقطع الجسم)
+      local neck = RigPoint(upper, "NeckRigAttachment", 0.5)
+      local waist = RigPoint(upper, "WaistRigAttachment", -0.5)
+      local pelvis = RigPoint(lower, "RootRigAttachment", 0)
+      add(head and head.Position, neck) add(neck, waist) add(waist, pelvis)
       for _, side in ipairs({"Left", "Right"}) do
         local upperArm, lowerArm, hand = Part(char, side .. "UpperArm"), Part(char, side .. "LowerArm"), Part(char, side .. "Hand")
         if upperArm and lowerArm then
-          local shoulder, elbow = EspJoint(upperArm, 0.5), EspJoint(lowerArm, 0.5)
-          add(neck, shoulder) add(shoulder, elbow) add(elbow, hand and hand.Position or EspJoint(lowerArm, -0.5))
+          -- الكتف من قطعة الصدر نفسها: المكان الصح للمفصل بدل أعلى الذراع
+          local shoulder = RigPoint(upper, side .. "ShoulderRigAttachment", 0.4) or EspJoint(upperArm, 0.5)
+          local elbow = RigPoint(upperArm, side .. "ElbowRigAttachment", -0.5)
+          local wrist = RigPoint(lowerArm, side .. "WristRigAttachment", -0.5)
+          add(neck, shoulder) add(shoulder, elbow) add(elbow, wrist)
+          add(wrist, hand and hand.Position or wrist)
         end
         local upperLeg, lowerLeg, foot = Part(char, side .. "UpperLeg"), Part(char, side .. "LowerLeg"), Part(char, side .. "Foot")
         if upperLeg and lowerLeg then
-          local hip, knee = EspJoint(upperLeg, 0.5), EspJoint(lowerLeg, 0.5)
-          add(pelvis, hip) add(hip, knee) add(knee, foot and foot.Position or EspJoint(lowerLeg, -0.5))
+          local hip = RigPoint(lower, side .. "HipRigAttachment", -0.5) or EspJoint(upperLeg, 0.5)
+          local knee = RigPoint(upperLeg, side .. "KneeRigAttachment", -0.5)
+          local ankle = RigPoint(lowerLeg, side .. "AnkleRigAttachment", -0.5)
+          add(pelvis, hip) add(hip, knee) add(knee, ankle)
+          add(ankle, foot and foot.Position or ankle)
         end
       end
     else -- R6
@@ -2770,32 +2789,62 @@ local HavenOK, HavenErr = pcall(function()
     return bones
   end
 
-  -- كل فريم: يرسم خطوط الهيكل بين المفاصل (لازم كل فريم عشان تمشي مع حركة اللاعب)
+  -- عنصر رسم جاهز بالفهرس المطلوب (ينبنى مرة وحدة وينعاد استخدامه)
+  local function EspAdorn(store, index, class, zIndex)
+    local obj = store[index]
+    if not obj or not obj.Parent then
+      obj = Instance.new(class)
+      obj.Adornee = workspace.Terrain obj.AlwaysOnTop = true obj.ZIndex = zIndex
+      obj.Parent = GetEspFolder()
+      store[index] = obj
+    end
+    return obj
+  end
+  local function EspHideFrom(store, firstIndex)
+    for index = firstIndex, #store do store[index].Visible = false end
+  end
+
+  -- كل فريم: الهيكل بين المفاصل (لازم كل فريم عشان يمشي مع حركة اللاعب)
+  -- الشكل: خط بلون الدور، تحته خط أسود أعرض عشان يبان على أي خلفية، ونقطة بكل مفصل
   local function RenderSkeletons()
     local thickness = tonumber(EspOpt("EspThickness", 2)) or 2
-    for player, lines in pairs(espLines) do
+    local outlineOn = EspOpt("EspSkeletonOutline", true)
+    local jointsOn = EspOpt("EspSkeletonJoints", true)
+    local dotRadius = 0.09 + thickness * 0.03
+    for player, store in pairs(espLines) do
       local color, char = espState[player], player.Character
       local bones = (color and char) and GetBones(char) or {}
       local count = #bones / 2
-      for index = 1, math.max(count, #lines) do
-        local line = lines[index]
-        if index <= count then
-          if not line then
-            line = Instance.new("LineHandleAdornment")
-            line.Adornee = workspace.Terrain line.AlwaysOnTop = true line.ZIndex = 5
-            line.Parent = GetEspFolder()
-            lines[index] = line
+      for index = 1, count do
+        local from, to = bones[index * 2 - 1], bones[index * 2]
+        local length = (to - from).Magnitude
+        if length > 0.01 then
+          local cf = CFrame.lookAt(from, to)
+          local line = EspAdorn(store.line, index, "LineHandleAdornment", 6)
+          line.CFrame = cf line.Length = length line.Color3 = color line.Thickness = thickness line.Visible = true
+          if outlineOn then
+            local edge = EspAdorn(store.edge, index, "LineHandleAdornment", 5)
+            edge.CFrame = cf edge.Length = length edge.Color3 = Color3.new(0, 0, 0)
+            edge.Thickness = thickness + 2 edge.Transparency = 0.15 edge.Visible = true
           end
-          local from, to = bones[index * 2 - 1], bones[index * 2]
-          local length = (to - from).Magnitude
-          line.Visible = length > 0.01
-          if length > 0.01 then
-            line.CFrame = CFrame.lookAt(from, to) line.Length = length line.Color3 = color line.Thickness = thickness
+          if jointsOn then
+            -- نقطة على نهاية كل عظمة + نقطة على الرأس (بداية أول عظمة)
+            local dot = EspAdorn(store.dot, index, "SphereHandleAdornment", 7)
+            dot.CFrame = CFrame.new(to) dot.Radius = dotRadius dot.Color3 = color dot.Visible = true
+            if index == 1 then
+              local headDot = EspAdorn(store.dot, count + 1, "SphereHandleAdornment", 7)
+              headDot.CFrame = CFrame.new(from) headDot.Radius = dotRadius * 1.6 headDot.Color3 = color headDot.Visible = true
+            end
           end
-        elseif line then
-          line.Visible = false
+        else
+          if store.line[index] then store.line[index].Visible = false end
+          if store.edge[index] then store.edge[index].Visible = false end
+          if store.dot[index] then store.dot[index].Visible = false end
         end
       end
+      EspHideFrom(store.line, count + 1)
+      EspHideFrom(store.edge, outlineOn and count + 1 or 1)
+      EspHideFrom(store.dot, jointsOn and count + 2 or 1)
     end
   end
 
@@ -2848,7 +2897,7 @@ local HavenOK, HavenErr = pcall(function()
     local showMode = EspOpt("EspShow", "Everyone")
     for player, lines in pairs(espLines) do
       if player.Parent == nil then
-        for _, line in ipairs(lines) do line:Destroy() end
+        for _, store in pairs(lines) do for _, obj in ipairs(store) do pcall(function() obj:Destroy() end) end end
         espLines[player] = nil espState[player] = nil
         EspDestroy(player)
       end
@@ -2876,7 +2925,7 @@ local HavenOK, HavenErr = pcall(function()
           or (showMode == "Chosen Player" and player.Name == EspOpt("EspPlayer", nil)))
 
         -- الهيكل
-        espLines[player] = espLines[player] or {}
+        espLines[player] = espLines[player] or {line = {}, edge = {}, dot = {}}
         if visible and EspOpt("EspSkeleton", true) then
           local pick = EspOpt("EspSkeletonColor", "Black")
           espState[player] = (pick == "Role Color") and color or EspColors[pick] or EspColors.Black
@@ -2949,7 +2998,7 @@ local HavenOK, HavenErr = pcall(function()
 
   local function ClearESP()
     for k, v in pairs(tbl) do if v then v:Destroy() end tbl[k] = nil end
-    for _, lines in pairs(espLines) do for _, line in ipairs(lines) do pcall(function() line:Destroy() end) end end
+    for _, lines in pairs(espLines) do for _, store in pairs(lines) do for _, obj in ipairs(store) do pcall(function() obj:Destroy() end) end end end
     for player in pairs(espGui) do EspDestroy(player) end
     espLines, espState, espGui = {}, {}, {}
     if espFolder then pcall(function() espFolder:Destroy() end) espFolder = nil end
@@ -4096,7 +4145,9 @@ local HavenOK, HavenErr = pcall(function()
   shared.Visual:Toggle("EspShowDead", "Show Dead Players", function() end)
   shared.Visual:Slider("EspMaxDistance", "Max Distance (0 = All)", 0, 1000, 0, "Percent", function() end)
   shared.Visual:Dropdown({Name = "Box Style", Multi = false, Required = true, Options = {"Filled", "Outline Only"}, Default = 1, Callback = function() end}, "EspBoxStyle")
-  shared.Visual:Slider("EspThickness", "Skeleton Thickness", 1, 5, 2, "Percent", function() end)
+  shared.Visual:Slider("EspThickness", "Skeleton Thickness", 1, 8, 2, "Percent", function() end)
+  shared.Visual:Toggle("EspSkeletonOutline", "Skeleton Outline", {State = true}, function() end)
+  shared.Visual:Toggle("EspSkeletonJoints", "Skeleton Joints", {State = true}, function() end)
   shared.Visual:Dropdown({Name = "Skeleton Color", Multi = false, Required = true, Options = {"Black", "White", "Role Color", "Red", "Blue", "Green", "Yellow", "Orange", "Purple", "Pink", "Cyan"}, Default = 1, Callback = function() end}, "EspSkeletonColor")
   shared.Visual:Dropdown({Name = "Murderer Color", Multi = false, Required = true, Options = EspColorNames, Default = 1, Callback = function() end}, "EspMurdererColor")
   shared.Visual:Dropdown({Name = "Sheriff Color", Multi = false, Required = true, Options = EspColorNames, Default = 2, Callback = function() end}, "EspSheriffColor")
