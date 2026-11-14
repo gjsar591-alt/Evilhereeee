@@ -4756,14 +4756,48 @@ local HavenOK, HavenErr = pcall(function()
   -- وقت بصيغة ISO كاملة: الصيغة القديمة بدون أصفار (2026-1-5) يرفضها ديسكورد فما توصل الرسالة
   local function WebhookTimestamp() return os.date("!%Y-%m-%dT%H:%M:%SZ") end
 
+  -- ====== تصميم رسائل الديسكورد ======
+  -- كل الرسائل تطلع بنفس الشكل: شعار الهب كصورة المرسل وبالترويسة والتوقيع، ولون الهب الأحمر
+  local HavenWH = {
+    Logo = "https://raw.githubusercontent.com/gjsar591-alt/Evilhereeee/refs/heads/claude/fervent-volta-w64bf7/assets/haven-logo.png",
+    Red = 14753070,    -- أحمر الهب (225, 29, 46)
+    Gold = 16766720    -- للكروما
+  }
+  -- 14532 -> 14,532
+  function HavenWH.Comma(n)
+    local digits = tostring(math.floor(tonumber(n) or 0))
+    return ((digits:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")))
+  end
+  function HavenWH.Server()
+    local id = tostring(game.JobId)
+    return (#id >= 18) and (id:sub(1, 4) .. "-" .. id:sub(15, 18)) or "offline"
+  end
+  function HavenWH.Face()
+    return "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
+  end
+  -- القيم داخل كتل كود عشان تتراصف وتبان مرتبة بالديسكورد
+  function HavenWH.Field(name, value, inline)
+    return {name = name, value = "```" .. tostring(value) .. "```", inline = inline ~= false}
+  end
+  function HavenWH.Send(kind, embed, content)
+    embed.color = embed.color or HavenWH.Red
+    embed.author = {name = "HAVEN HUB  |  " .. kind, icon_url = HavenWH.Logo}
+    embed.thumbnail = embed.thumbnail or {url = HavenWH.Face()}
+    embed.timestamp = WebhookTimestamp()
+    embed.footer = {text = LocalPlayer.Name .. "  |  Murder Mystery 2  |  Server " .. HavenWH.Server(), icon_url = HavenWH.Logo}
+    return PostWebhook({username = "Haven Hub", avatar_url = HavenWH.Logo, content = content, embeds = {embed}})
+  end
+
   shared.Tracker:Button({Name = "Send Test Webhook", Callback = function()
-    local ok, err = PostWebhook({username = "Haven Hub | Status", embeds = {{
+    local ok, err = HavenWH.Send("STATUS", {
       title = "Webhook Connected",
-      description = "Reports for **" .. LocalPlayer.Name .. "** will be delivered to this channel.",
-      color = 3461273,
-      timestamp = WebhookTimestamp(),
-      footer = {text = "Haven Hub • Murder Mystery 2"}
-    }}})
+      description = "Haven Hub is linked to this channel.\nFarm reports and unbox alerts will arrive here.",
+      fields = {
+        HavenWH.Field("Player", LocalPlayer.Name),
+        HavenWH.Field("Server", HavenWH.Server()),
+        HavenWH.Field("Status", "Connected")
+      }
+    })
     Window:Notify({Title = "WEBHOOK TEST", Description = ok and "Sent. Check your Discord channel." or ("Failed: " .. tostring(err)), Duration = 6})
   end})
   shared.Tracker:Divider()
@@ -4789,22 +4823,16 @@ local HavenOK, HavenErr = pcall(function()
           local info = itemService:GetDisplayInfo(itemId, "Weapons")
           local rarity = (syncDB.Weapons[itemId] and syncDB.Weapons[itemId].Rarity) or "Unknown"
           local isChroma = info.Chroma and true or false
-          pcall(PostWebhook, {
-            username = "Haven Hub | Unbox Alert",
-            content = isChroma and "@everyone" or "",
-            embeds = {{
-              title = isChroma and "Chroma Unboxed!" or "New Item Unboxed",
-              description = "**" .. LocalPlayer.Name .. "** opened a mystery box.",
-              color = isChroma and 16766720 or 14753070,
-              fields = {
-                {name = "Item", value = tostring(info.Name), inline = true},
-                {name = "Rarity", value = tostring(rarity), inline = true},
-                {name = "Box", value = tostring(boxId), inline = true}
-              },
-              timestamp = WebhookTimestamp(),
-              footer = {text = "Haven Hub • Murder Mystery 2"}
-            }}
-          })
+          pcall(HavenWH.Send, isChroma and "CHROMA UNBOX" or "UNBOX ALERT", {
+            title = isChroma and "Chroma Unboxed" or "New Item Unboxed",
+            description = "**" .. LocalPlayer.Name .. "** opened a mystery box.",
+            color = isChroma and HavenWH.Gold or nil,
+            fields = {
+              HavenWH.Field("Item", info.Name),
+              HavenWH.Field("Rarity", rarity),
+              HavenWH.Field("Box", boxId)
+            }
+          }, isChroma and "@everyone" or nil)
         end
       end)
     end
@@ -4922,25 +4950,20 @@ local HavenOK, HavenErr = pcall(function()
     for coinType, gained in pairs(counts) do
       if gained > 0 then
         total = total + gained
-        table.insert(fields, {name = tostring(coinType), value = "**+" .. gained .. "**", inline = true})
+        -- كتلة diff: الزيادة تطلع بلون أخضر عند ديسكورد
+        table.insert(fields, {name = tostring(coinType), value = "```diff\n+ " .. HavenWH.Comma(gained) .. "\n```", inline = true})
       end
     end
     if total == 0 then return nil end
     local mins = sec / 60
     local mFmt = (mins % 1 == 0) and mins or tonumber(string.format("%.1f", mins))
-    table.insert(fields, {name = "Period", value = tostring(mFmt) .. (mFmt == 1 and " minute" or " minutes"), inline = true})
-    table.insert(fields, {name = "Rate", value = tostring(math.floor(total / sec * 3600)) .. " / hour", inline = true})
-    return PostWebhook({
-      username = "Haven Hub | Farm Report",
-      embeds = {{
-        title = "Coin Farm Report",
-        description = "**" .. LocalPlayer.Name .. "** collected **" .. total .. "** coins.",
-        color = 14753070,
-        thumbnail = {url = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=150&height=150&format=png"},
-        fields = fields,
-        timestamp = WebhookTimestamp(),
-        footer = {text = "Haven Hub • Murder Mystery 2"}
-      }}
+    table.insert(fields, HavenWH.Field("Total", HavenWH.Comma(total)))
+    table.insert(fields, HavenWH.Field("Period", tostring(mFmt) .. (mFmt == 1 and " minute" or " minutes")))
+    table.insert(fields, HavenWH.Field("Rate", HavenWH.Comma(total / sec * 3600) .. " / hour"))
+    return HavenWH.Send("FARM REPORT", {
+      title = "Coin Farm Report",
+      description = "**" .. LocalPlayer.Name .. "** collected **" .. HavenWH.Comma(total) .. "** coins.",
+      fields = fields
     })
   end
 
