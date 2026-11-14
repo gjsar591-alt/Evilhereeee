@@ -2674,7 +2674,8 @@ local HavenOK, HavenErr = pcall(function()
   -- يتحرك تحت العملة بسرعة ثابتة (من سلايدر Farm Speed)
   local function MoveToCoin(coin, rootPart)
     local pos = coin.CoinVisual.Position
-    local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 80)
+    -- 40 هو السقف اللي اللعبة تتحمله؛ فوقه تطردك "Invalid position"
+    local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 40)
     if not IsBagFull() and CoinAttribute(coin, true) then
       local style = Options.FarmStyle and Options.FarmStyle:GetValue() or "Underground Lying"
       farmIsUnderground = style ~= "Above Ground"
@@ -2682,21 +2683,22 @@ local HavenOK, HavenErr = pcall(function()
       -- منسدح على بطنه (مو واقف) وهو يتحرك تحت الأرض
       if style == "Underground Lying" then target = target * CFrame.Angles(math.rad(-90), 0, 0) end
       if style == "Teleport" then
-        -- خطوات قصيرة متتابعة بدل قفزة وحدة بعيدة: أسرع بكثير (ما فيه انتظار ثانية بين كل عملة)،
-        -- وأأمن لأن كل خطوة مسافتها قصيرة ومو قفزة ضخمة، ومع كل خطوة نلقط العملات اللي نمر عليها
-        local step = math.clamp(speed * 0.6, 12, 48)
+        -- خطوات قصيرة متتابعة بوقفة بينها. الوقفة مهمة: بدونها اللعبة تطردك "Invalid position"
+        -- لأن المسافة بالثانية تطلع أكبر من أي سرعة مشي ممكنة
+        local step = math.clamp(speed * 0.5, 8, 16)            -- أقصى قفزة 16 ستد (قبل كانت 48)
+        local gap = math.clamp(step / (speed * 2.5), 0.08, 0.4) -- الوقفة تضبط السرعة النهائية
         if v17 then v17:Cancel() v17 = nil end
         local guard = 0
         while coin.Parent and rootPart.Parent and Options.AutoFarm:GetValue()
           and IsPlayerAlive(LocalPlayer, roles) and not IsBagFull() do
           guard = guard + 1
-          if guard > 150 then break end -- ما وصلنا: نطلع ونخلي حارس التعليق يتصرف
+          if guard > 400 then break end -- ما وصلنا: نطلع ونخلي حارس التعليق يتصرف
           local delta = target.Position - rootPart.Position
           rootPart.AssemblyLinearVelocity = Vector3.zero -- بدون سرعة متبقية: لا فلنق ولا سقوط
           if delta.Magnitude <= step then rootPart.CFrame = target break end
           rootPart.CFrame = target.Rotation + (rootPart.Position + delta.Unit * step)
           FindCoin(rootPart, "closest") -- يلقط أي عملة تمر بمدانا بالطريق
-          task.wait()
+          task.wait(gap)
         end
         return
       end
@@ -3085,7 +3087,7 @@ local HavenOK, HavenErr = pcall(function()
     DisableFloat()
   end)
 
-  shared.Main:Slider("FarmSpeed", "Farm Speed", 16, 80, 26, "Percent", function() end)
+  shared.Main:Slider("FarmSpeed", "Farm Speed", 16, 40, 26, "Percent", function() end)
   shared.Main:Slider("FarmReach", "Collect Radius", 4, 20, 6, "Percent", function() end)
   shared.Main:Dropdown({Name = "Farm Style", Multi = false, Required = true, Options = {"Underground Lying", "Underground Standing", "Above Ground", "Teleport"}, Default = 1, Callback = function() end}, "FarmStyle")
   shared.Main:Dropdown({Name = "Farm Target", Multi = false, Required = true, Options = {"Closest", "Random Nearby", "Far From Murderer"}, Default = 1, Callback = function() end}, "FarmTarget")
@@ -5341,12 +5343,16 @@ local HavenOK, HavenErr = pcall(function()
       pcall(function() HavenLib:SaveConfig(game.PlaceId) end)
       local payload = Srv.Payload()
       if not payload then return false end
-      if Srv.Queue then pcall(Srv.Queue, payload) return true end
-      -- المنفذ بلا queue_on_teleport: نحط السطر في autoexec، والسكربت يمسح الملف أول ما يشتغل
+      local ready = false
+      if Srv.Queue then pcall(Srv.Queue, payload) ready = true end
+      -- ونكتبه كمان بملف autoexec: بعد الطرد الانتقال يفشل أصلاً (خصوصاً بالجوال) فالـ queue ما ينفع،
+      -- والملف يرجّع السكربت أول ما تدخل اللعبة بنفسك. يمسح نفسه بأول سطر فما يشتغل مرتين
       if Srv.FileOK and type(isfolder) == "function" and isfolder("autoexec") then
-        if pcall(writefile, "autoexec/HavenHubRestart.lua", payload) then return true end
+        local selfDelete = 'pcall(function() local d = delfile or deletefile if d then d("autoexec/HavenHubRestart.lua") end end) '
+        local placeGuard = 'if game.PlaceId ~= ' .. tostring(Srv.Place) .. ' then return end '
+        if pcall(writefile, "autoexec/HavenHubRestart.lua", selfDelete .. placeGuard .. payload) then ready = true end
       end
-      return false
+      return ready
     end
 
     function Srv.Tell(title, text)
