@@ -2615,8 +2615,7 @@ local HavenOK, HavenErr = pcall(function()
     return nil
   end
 
-  -- يتحرك تحت العملة بسرعة ثابتة (من سلايدر Farm Speed) بدون أي انتقال فوري
-  local lastFarmTeleport = 0
+  -- يتحرك تحت العملة بسرعة ثابتة (من سلايدر Farm Speed)
   local function MoveToCoin(coin, rootPart)
     local pos = coin.CoinVisual.Position
     local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 80)
@@ -2627,14 +2626,22 @@ local HavenOK, HavenErr = pcall(function()
       -- منسدح على بطنه (مو واقف) وهو يتحرك تحت الأرض
       if style == "Underground Lying" then target = target * CFrame.Angles(math.rad(-90), 0, 0) end
       if style == "Teleport" then
-        -- انتقال فوري تحت العملة، مرة كل ثانية
-        local waitLeft = math.clamp(26 / speed, 0.2, 1) - (os.clock() - lastFarmTeleport)
-        if waitLeft > 0 then task.wait(waitLeft) end
-        if not (coin.Parent and rootPart.Parent and Options.AutoFarm:GetValue()) then return end
-        lastFarmTeleport = os.clock()
+        -- خطوات قصيرة متتابعة بدل قفزة وحدة بعيدة: أسرع بكثير (ما فيه انتظار ثانية بين كل عملة)،
+        -- وأأمن لأن كل خطوة مسافتها قصيرة ومو قفزة ضخمة، ومع كل خطوة نلقط العملات اللي نمر عليها
+        local step = math.clamp(speed * 0.6, 12, 48)
         if v17 then v17:Cancel() v17 = nil end
-        rootPart.AssemblyLinearVelocity = Vector3.zero
-        rootPart.CFrame = target
+        local guard = 0
+        while coin.Parent and rootPart.Parent and Options.AutoFarm:GetValue()
+          and IsPlayerAlive(LocalPlayer, roles) and not IsBagFull() do
+          guard = guard + 1
+          if guard > 150 then break end -- ما وصلنا: نطلع ونخلي حارس التعليق يتصرف
+          local delta = target.Position - rootPart.Position
+          rootPart.AssemblyLinearVelocity = Vector3.zero -- بدون سرعة متبقية: لا فلنق ولا سقوط
+          if delta.Magnitude <= step then rootPart.CFrame = target break end
+          rootPart.CFrame = target.Rotation + (rootPart.Position + delta.Unit * step)
+          FindCoin(rootPart, "closest") -- يلقط أي عملة تمر بمدانا بالطريق
+          task.wait()
+        end
         return
       end
       TweenTo(target, speed, false, false, nil, true)
