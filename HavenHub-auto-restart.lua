@@ -101,6 +101,7 @@ local HavenOK, HavenErr = pcall(function()
     ["Anti Fling"] = "مضاد الفلنق",
     ["Anti-Stealer (Block Trades)"] = "مضاد السرقة (حظر التبادل)",
     ["Farm Speed"] = "سرعة الفارم",
+    ["Collect Radius"] = "مدى الالتقاط",
     ["Skeleton Thickness"] = "سماكة الهيكل",
     ["Kill Aura Range"] = "مدى هالة القتل",
     ["Hitbox Size"] = "حجم الهيت بوكس",
@@ -2425,20 +2426,26 @@ local HavenOK, HavenErr = pcall(function()
 
   CoinAttribute = function(coinPart, checkOnly)
     if not coinPart then return false end
+    if coinPart:GetAttribute("HavenTouched") then return false end -- جاري لقطها بخيط ثاني
     local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hum or not root or not hum.Parent.PrimaryPart then return false end
     local dist = (coinPart.Position - hum.Parent.PrimaryPart.Position).Magnitude
-    -- من تحت الأرض نحتاج مدى أكبر شوي عشان نوصل للعملة اللي فوقنا
-    local reach = farmIsUnderground and math.max(4, FARM_DEPTH + 0.75) or 4
+    -- مدى اللقط من السلايدر، ومن تحت الأرض لا ينزل عن عمق النزول عشان نوصل للعملة اللي فوقنا
+    local reach = math.clamp(tonumber(Options.FarmReach and Options.FarmReach:GetValue()) or 6, 4, 20)
+    if farmIsUnderground then reach = math.max(reach, FARM_DEPTH + 0.75) end
     if dist <= reach and shared.Premium then
-      task.wait()
-      if firetouchinterest then
-        firetouchinterest(coinPart, root, 1) task.wait(0.1) firetouchinterest(coinPart, root, 0)
-      end
-      coinPart:Destroy()
+      -- بخيط منفصل: الملامسة كانت توقف فحص العملات 0.1 ثانية لكل عملة، وهذا أكبر بطء بالفارم
+      coinPart:SetAttribute("HavenTouched", true)
+      task.spawn(function()
+        if firetouchinterest then
+          firetouchinterest(coinPart, root, 1) task.wait(0.05) firetouchinterest(coinPart, root, 0)
+        end
+        if coinPart.Parent then coinPart:Destroy() end
+      end)
+      return false
     elseif dist <= 2 then
-      task.wait(0.1) coinPart.Name = "haven_collected"
+      coinPart.Name = "haven_collected"
     end
     if coinPart:GetAttribute("Collected") == true then return false end
     return checkOnly == true
@@ -2576,6 +2583,8 @@ local HavenOK, HavenErr = pcall(function()
 
 
 
+  -- عملة ما قدرنا نوصلها (جدار، سقف، عالق): نتجاوزها فترة بدل ما يعلق الفارم عليها
+  local farmStall = {at = 0, cleaned = 0, skip = {}}
   local function FindCoin(rootPart, mode)
     local container = GetMapElement("CoinContainer")
     if not container then return nil end
@@ -2586,7 +2595,7 @@ local HavenOK, HavenErr = pcall(function()
     local mPos = mRoot and mRoot.Position or nil
 
     for _, child in pairs(container:GetChildren()) do
-      if CoinAttribute(child, true) and child.Name == "Coin_Server" and child:FindFirstChild("TouchInterest") and child:FindFirstChild("CoinVisual") and IsPlayerAlive(LocalPlayer, roles) then
+      if CoinAttribute(child, true) and not (farmStall.skip[child] and os.clock() < farmStall.skip[child]) and child.Name == "Coin_Server" and child:FindFirstChild("TouchInterest") and child:FindFirstChild("CoinVisual") and IsPlayerAlive(LocalPlayer, roles) then
         local pos = child.CoinVisual.Position
         local mag = (rootPart.Position - pos).Magnitude
         if mPos and (pos - mPos).Magnitude >= 25 then
@@ -2610,7 +2619,7 @@ local HavenOK, HavenErr = pcall(function()
   local lastFarmTeleport = 0
   local function MoveToCoin(coin, rootPart)
     local pos = coin.CoinVisual.Position
-    local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 40)
+    local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 80)
     if not IsBagFull() and CoinAttribute(coin, true) then
       local style = Options.FarmStyle and Options.FarmStyle:GetValue() or "Underground Lying"
       farmIsUnderground = style ~= "Above Ground"
@@ -2619,7 +2628,7 @@ local HavenOK, HavenErr = pcall(function()
       if style == "Underground Lying" then target = target * CFrame.Angles(math.rad(-90), 0, 0) end
       if style == "Teleport" then
         -- انتقال فوري تحت العملة، مرة كل ثانية
-        local waitLeft = 1 - (os.clock() - lastFarmTeleport)
+        local waitLeft = math.clamp(26 / speed, 0.2, 1) - (os.clock() - lastFarmTeleport)
         if waitLeft > 0 then task.wait(waitLeft) end
         if not (coin.Parent and rootPart.Parent and Options.AutoFarm:GetValue()) then return end
         lastFarmTeleport = os.clock()
@@ -2644,10 +2653,16 @@ local HavenOK, HavenErr = pcall(function()
         if not Options.AutoFarm:GetValue() or not IsPlayerAlive(LocalPlayer, roles) or not root then return end
         local pick = Options.FarmTarget and Options.FarmTarget:GetValue()
         local mode = (pick == "Random Nearby" and "random") or (pick == "Far From Murderer" and "safe") or "closest"
+        -- عالقين على نفس العملة أكثر من 3 ثواني (جدار أو سقف): نتجاوزها ونكمل على غيرها
+        if os.clock() - farmStall.cleaned > 30 then farmStall.cleaned = os.clock() farmStall.skip = {} end
+        if v18 and v18.Parent and os.clock() - farmStall.at > 3 then
+          farmStall.skip[v18] = os.clock() + 10
+          v18 = nil
+        end
         local coin = FindCoin(root, mode) -- لازم ينادى كل فريم: هو اللي يلقط العملات القريبة
         -- غير "الأقرب": نكمل على نفس العملة لين تنلقط، وإلا الهدف يتغير كل فريم والشخصية ترجف
         if mode ~= "closest" and v18 and v18.Parent and v18.Name == "Coin_Server" and v18:GetAttribute("Collected") ~= true then return end
-        if coin and v18 ~= coin then EnableFloat() MoveToCoin(coin, root) v18 = coin end
+        if coin and v18 ~= coin then EnableFloat() MoveToCoin(coin, root) v18 = coin farmStall.at = os.clock() end
       end
 
       if not IsBagFull() or not root or not hum or hum.Health <= 0 or not IsPlayerAlive(LocalPlayer, roles) then farmFullHandled = false farmStep() return end
@@ -2913,7 +2928,8 @@ local HavenOK, HavenErr = pcall(function()
     DisableFloat()
   end)
 
-  shared.Main:Slider("FarmSpeed", "Farm Speed", 16, 40, 26, "Percent", function() end)
+  shared.Main:Slider("FarmSpeed", "Farm Speed", 16, 80, 26, "Percent", function() end)
+  shared.Main:Slider("FarmReach", "Collect Radius", 4, 20, 6, "Percent", function() end)
   shared.Main:Dropdown({Name = "Farm Style", Multi = false, Required = true, Options = {"Underground Lying", "Underground Standing", "Above Ground", "Teleport"}, Default = 1, Callback = function() end}, "FarmStyle")
   shared.Main:Dropdown({Name = "Farm Target", Multi = false, Required = true, Options = {"Closest", "Random Nearby", "Far From Murderer"}, Default = 1, Callback = function() end}, "FarmTarget")
   -- ==========================================================================
