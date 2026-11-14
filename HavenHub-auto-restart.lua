@@ -5513,12 +5513,63 @@ local HavenOK, HavenErr = pcall(function()
     -- ====== الطرد أو قطع الاتصال: نرجع فوراً والسكربت يرجع معنا ======
     -- مصدرين عشان يشتغل على كل الأجهزة: نافذة الخطأ في CoreGui، وانقطاع NetworkClient
     Srv.kicked = false
+    -- الطرد: نحجز الرجوع أول (الملف يكفي لو الانتقال فشل)، وننتقل فوراً بدون أي تأخير،
+    -- ونعيد المحاولة: بعد الطرد تكون اللعبة بنص الانهيار وأول محاولة انتقال كثير تفشل
     function Srv.OnDisconnect(why)
-      if Srv.kicked or Srv.busy then return end
+      if Srv.kicked then return end
       if not (Options.AutoRejoinKick and Options.AutoRejoinKick:GetValue()) then return end
       Srv.kicked = true
-      HavenRejoin:Rejoin(why)
+      Srv.busy = true
+      Mark("kick detected (" .. tostring(why) .. "), rejoining", true)
+      task.spawn(function()
+        local ready, how = Srv.Prepare()
+        Mark("restart armed: " .. tostring(ready) .. " (" .. tostring(how) .. ")", true)
+        for _ = 1, 6 do
+          pcall(function() Services.TeleportService:Teleport(Srv.Place, LocalPlayer) end)
+          task.wait(1.5)
+        end
+      end)
     end
+
+    -- كشف الطرد: نافذة الخطأ تختلف بين نسخ روبلوكس والأجهزة، فنفحص بثلاث طرق
+    task.spawn(function()
+      -- ظاهر فعلاً: ما يكفي Visible على العنصر نفسه، لازم كل اللي فوقه ظاهر كمان
+      -- (نافذة روبلوكس فيها نصوص مخفية عن الأخطاء، وبدون هالفحص نظن إننا انطردنا ونرجع بلا سبب)
+      local function ReallyShown(obj)
+        while obj and obj ~= Services.CoreGui do
+          if obj:IsA("GuiObject") and not obj.Visible then return false end
+          if obj:IsA("LayerCollector") and not obj.Enabled then return false end
+          obj = obj.Parent
+        end
+        return obj ~= nil
+      end
+      local function LooksKicked()
+        local ok, found = pcall(function()
+          for _, gui in ipairs(Services.CoreGui:GetChildren()) do
+            if gui.Name == "RobloxPromptGui" or gui.Name == "ErrorPrompt" or gui.Name == "RobloxErrorPrompt" then
+              for _, d in ipairs(gui:GetDescendants()) do
+                if d:IsA("GuiObject") and ReallyShown(d) then
+                  if d.Name == "ErrorPrompt" then return true end
+                  if d:IsA("TextLabel") then
+                    local text = tostring(d.Text):lower()
+                    if text:find("disconnect", 1, true) or text:find("kicked", 1, true)
+                      or text:find("error code", 1, true) then return true end
+                  end
+                end
+              end
+            end
+          end
+          return false
+        end)
+        return ok and found
+      end
+      while task.wait(1) do
+        if shared.VertexLoaded ~= true then break end
+        if LooksKicked() then Srv.OnDisconnect("error prompt") break end
+      end
+    end)
+
+    -- الطريقة الثانية: وصول نافذة الخطأ لحظة ظهورها (أسرع من الفحص الدوري)
     task.spawn(function()
       local overlay
       pcall(function()
@@ -5527,15 +5578,16 @@ local HavenOK, HavenErr = pcall(function()
       end)
       if not overlay then return end
       local function Check(child)
-        if child.Name == "ErrorPrompt" then task.delay(0.5, function() Srv.OnDisconnect("kicked") end) end
+        if tostring(child.Name):find("ErrorPrompt", 1, true) then Srv.OnDisconnect("kicked") end
       end
-      -- الاتصال ينحفظ مع الباقي عشان ينفصل لو المستخدم سكّر الهب
       pcall(function() table.insert(HavenConnections, overlay.ChildAdded:Connect(Check)) end)
       for _, child in ipairs(overlay:GetChildren()) do Check(child) end
     end)
+
+    -- الطريقة الثالثة: انقطاع الاتصال نفسه
     pcall(function()
       table.insert(HavenConnections, Services.NetworkClient.ChildRemoved:Connect(function()
-        task.delay(0.5, function() Srv.OnDisconnect("disconnected") end)
+        Srv.OnDisconnect("disconnected")
       end))
     end)
 
