@@ -2717,25 +2717,26 @@ local HavenOK, HavenErr = pcall(function()
       -- منسدح على بطنه (مو واقف) وهو يتحرك تحت الأرض
       if style == "Underground Lying" then target = target * CFrame.Angles(math.rad(-90), 0, 0) end
       if style == "Teleport" then
-        -- خطوات قصيرة متتابعة بوقفة بينها. الوقفة مهمة: بدونها اللعبة تطردك "Invalid position"
-        -- لأن المسافة بالثانية تطلع أكبر من أي سرعة مشي ممكنة
-        local step = math.clamp(speed * 0.5, 8, 16)            -- أقصى قفزة 16 ستد (قبل كانت 48)
-        local gap = math.clamp(step / (speed * 2.5), 0.08, 0.4) -- الوقفة تضبط السرعة النهائية
+        -- إيقاع لا يطرد: نقلة وحدة كل ~ثانية، مو خطوات متتابعة.
+        -- التجربة: نقلة/ثانية ما طردت أبداً، والخطوات السريعة طردت "Invalid position".
+        -- السلايدر يقصّر الفاصل لين 0.7 ثانية فقط، وما ينزل تحتها مهما رفعته
+        local gap = math.clamp(26 / speed, 0.7, 1.2)
+        local left = gap - (os.clock() - (farmStall.lastTp or 0))
+        if left > 0 then task.wait(left) end
+        if not (coin.Parent and rootPart.Parent and Options.AutoFarm:GetValue()) or IsBagFull() then return end
+        farmStall.lastTp = os.clock()
         if v17 then v17:Cancel() v17 = nil end
-        local guard = 0
-        while coin.Parent and rootPart.Parent and Options.AutoFarm:GetValue()
-          and IsPlayerAlive(LocalPlayer, roles) and not IsBagFull() do
-          guard = guard + 1
-          if guard > 400 then break end -- ما وصلنا: نطلع ونخلي حارس التعليق يتصرف
-          local delta = target.Position - rootPart.Position
-          rootPart.AssemblyLinearVelocity = Vector3.zero -- بدون سرعة متبقية: لا فلنق ولا سقوط
-          if delta.Magnitude <= step then rootPart.CFrame = target break end
-          rootPart.CFrame = target.Rotation + (rootPart.Position + delta.Unit * step)
-          FindCoin(rootPart, "closest") -- يلقط أي عملة تمر بمدانا بالطريق
-          task.wait(gap)
+        rootPart.AssemblyLinearVelocity = Vector3.zero -- بدون سرعة متبقية: لا فلنق ولا سقوط
+        -- أبعد من 300 ستد نقطع المسافة على نقلتين: قفزة نص الماب بلحظة هي أخطر حدث للفحص
+        local delta = target.Position - rootPart.Position
+        if delta.Magnitude > 300 then
+          rootPart.CFrame = target.Rotation + (rootPart.Position + delta.Unit * 300)
+        else
+          rootPart.CFrame = target
         end
         return
       end
+
       TweenTo(target, speed, false, false, nil, true)
     end
   end
@@ -2771,6 +2772,7 @@ local HavenOK, HavenErr = pcall(function()
         v18 = nil
         root.AssemblyLinearVelocity = Vector3.zero
         TweenService:Create(root, TweenInfo.new(0.05), {CFrame = root.CFrame}):Play() -- يوقف أي حركة شغالة
+        SurfaceFromUnderground() -- ما نبقى تحت الأرض بلا داعي: وقوفك تحت الماب طويلاً يلفت فحص الموقع
         Window:Notify({Title = "AUTO FARM", Description = "Bag is full. Farm paused until the next round.", Duration = 5})
       end
     end)
