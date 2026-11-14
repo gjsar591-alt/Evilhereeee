@@ -2719,10 +2719,8 @@ local HavenOK, HavenErr = pcall(function()
       -- منسدح على بطنه (مو واقف) وهو يتحرك تحت الأرض
       if style == "Underground Lying" then target = target * CFrame.Angles(math.rad(-90), 0, 0) end
       if style == "Teleport" then
-        -- إيقاع لا يطرد: نقلة وحدة كل ~ثانية، مو خطوات متتابعة.
-        -- التجربة: نقلة/ثانية ما طردت أبداً، والخطوات السريعة طردت "Invalid position".
-        -- السلايدر يقصّر الفاصل لين 0.7 ثانية فقط، وما ينزل تحتها مهما رفعته
-        -- الفاصل بين نقلة ونقلة: 0.67 ثانية بالضبط (سلايدر السرعة يخص الأنماط الثانية)
+        -- نقلة وحدة كل 0.67 ثانية بالضبط، مو خطوات متتابعة:
+        -- الخطوات السريعة هي اللي طردت "Invalid position". (سلايدر السرعة يخص الأنماط الثانية)
         local left = 0.67 - (os.clock() - (farmStall.lastTp or 0))
         if left > 0 then task.wait(left) end
         if not (coin.Parent and rootPart.Parent and Options.AutoFarm:GetValue()) or IsBagFull() then return end
