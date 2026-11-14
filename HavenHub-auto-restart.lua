@@ -2719,9 +2719,9 @@ local HavenOK, HavenErr = pcall(function()
       -- منسدح على بطنه (مو واقف) وهو يتحرك تحت الأرض
       if style == "Underground Lying" then target = target * CFrame.Angles(math.rad(-90), 0, 0) end
       if style == "Teleport" then
-        -- نقلة وحدة كل 1.35 ثانية بالضبط، مو خطوات متتابعة:
+        -- نقلة وحدة كل 1.6 ثانية بالضبط، مو خطوات متتابعة:
         -- الخطوات السريعة هي اللي طردت "Invalid position". (سلايدر السرعة يخص الأنماط الثانية)
-        local left = 1.35 - (os.clock() - (farmStall.lastTp or 0))
+        local left = 1.6 - (os.clock() - (farmStall.lastTp or 0))
         if left > 0 then task.wait(left) end
         if not (coin.Parent and rootPart.Parent and Options.AutoFarm:GetValue()) or IsBagFull() then return end
         farmStall.lastTp = os.clock()
