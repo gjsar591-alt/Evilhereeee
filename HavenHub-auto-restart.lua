@@ -14,6 +14,12 @@ local HavenOK, HavenErr = pcall(function()
     env.HavenHubStartedJob = game.JobId
   end
 
+  -- رجعنا عن طريق autoexec (منفذ بلا queue_on_teleport)؟ نمسح ملف الإقلاع عشان ما يشتغل بكل فتح للعبة
+  pcall(function()
+    local remove = delfile or deletefile
+    if isfile and remove and isfile("autoexec/HavenHubRestart.lua") then remove("autoexec/HavenHubRestart.lua") end
+  end)
+
   local Services = setmetatable({}, {
     __index = function(self, k)
       local s = game:GetService(k)
@@ -5226,12 +5232,18 @@ local HavenOK, HavenErr = pcall(function()
     end
 
     -- إعادة التشغيل بعد الانتقال: كل منفذ يسمي الدالة باسم مختلف
-    Srv.Queue = Srv.Global("queue_on_teleport") or Srv.Global("queueonteleport")
+    -- الاسم المباشر أول: دلتا وغيره يحطون الدالة ببيئة السكربت نفسها، مو في getgenv ولا _G
+    local okDirect, direct = pcall(function() return queue_on_teleport or queueonteleport end)
+    Srv.Queue = (okDirect and type(direct) == "function" and direct)
+      or Srv.Global("queue_on_teleport") or Srv.Global("queueonteleport")
       or Srv.MemberOf("syn", "queue_on_teleport") or Srv.MemberOf("fluxus", "queue_on_teleport")
+      or Srv.MemberOf("delta", "queue_on_teleport")
     if type(Srv.Queue) ~= "function" then Srv.Queue = nil end
 
     -- طلب HTTP لقائمة السيرفرات: request أو ما يعادلها، وإلا Srv.Http
-    Srv.Req = Srv.Global("request") or Srv.Global("http_request")
+    okDirect, direct = pcall(function() return request or http_request end)
+    Srv.Req = (okDirect and type(direct) == "function" and direct)
+      or Srv.Global("request") or Srv.Global("http_request")
       or Srv.MemberOf("syn", "request") or Srv.MemberOf("http", "request") or Srv.MemberOf("fluxus", "request")
     if type(Srv.Req) ~= "function" then Srv.Req = nil end
 
@@ -5328,7 +5340,12 @@ local HavenOK, HavenErr = pcall(function()
     function Srv.Prepare()
       pcall(function() HavenLib:SaveConfig(game.PlaceId) end)
       local payload = Srv.Payload()
-      if payload and Srv.Queue then pcall(Srv.Queue, payload) return true end
+      if not payload then return false end
+      if Srv.Queue then pcall(Srv.Queue, payload) return true end
+      -- المنفذ بلا queue_on_teleport: نحط السطر في autoexec، والسكربت يمسح الملف أول ما يشتغل
+      if Srv.FileOK and type(isfolder) == "function" and isfolder("autoexec") then
+        if pcall(writefile, "autoexec/HavenHubRestart.lua", payload) then return true end
+      end
       return false
     end
 
@@ -5498,9 +5515,11 @@ local HavenOK, HavenErr = pcall(function()
     end)
 
     task.delay(8, function()
-      if not Srv.Queue then
-        Srv.Tell("REJOIN", "This executor has no queue_on_teleport, so the script cannot restart itself after a rejoin.")
-      end
+      if Srv.Queue then return end
+      local viaAutoexec = Srv.FileOK and type(isfolder) == "function" and isfolder("autoexec")
+      Srv.Tell("REJOIN", viaAutoexec
+        and "This executor has no queue_on_teleport, so the script will come back through its autoexec folder instead."
+        or "This executor has no queue_on_teleport and no autoexec folder, so the script cannot restart itself after a rejoin.")
     end)
   end
 
