@@ -2212,13 +2212,13 @@ local HavenOK, HavenErr = pcall(function()
       return obj ~= nil
     end
 
-    -- نص الزر: نصه هو، وإلا نص أول TextLabel داخله (أزرار الجهاز صورة + نص جوّاها)، وإلا اسمه
+    -- نص الزر فقط (مو اسمه): MM2 يسمي أزرار اللمس عنده Phone و Tablet، فالمطابقة بالاسم تضغط الغلط
     local function LabelOf(btn)
       if btn:IsA("TextButton") and btn.Text ~= "" then return btn.Text end
       for _, child in ipairs(btn:GetDescendants()) do
         if child:IsA("TextLabel") and child.Text ~= "" then return child.Text end
       end
-      return btn.Name
+      return ""
     end
 
     -- جهاز المستخدم من حجم الشاشة: الآيباد/التابلت أقصر ضلع عنده كبير
@@ -2238,7 +2238,8 @@ local HavenOK, HavenErr = pcall(function()
       for _, d in ipairs(pg:GetDescendants()) do
         if d:IsA("GuiObject") and d.AbsoluteSize.X > 40 and d.AbsoluteSize.Y > 20 and Shown(d) then
           local label = tostring(LabelOf(d)):lower():gsub("%s", "")
-          if label:sub(1, 4) == "play" or label:find(want, 1, true) then
+          -- مطابقة تامة: "phone" نعم، "phonecase" أو زر لمس اسمه Phone لا
+          if label == "play" or label == want then
             -- الأصغر أدق (الزر نفسه مو الإطار اللي حوله)، والزر الحقيقي أولى من الإطار
             local area = d.AbsoluteSize.X * d.AbsoluteSize.Y
             if d:IsA("GuiButton") then area = area - 1e6 end
@@ -5319,12 +5320,10 @@ local HavenOK, HavenErr = pcall(function()
     -- سطر تشغيل السكربت بعد الريجوين: من النسخة اللي حفظها السكربت عن نفسه
     function Srv.Loader()
       -- HavenHubSource ينحفظ بالبيئة عشان النسخة الجديدة تقدر تنسخ نفسها بدورها (ريجوين بعد ريجوين)
-      if Srv.Saved() then
-        return 'local e = (getgenv and getgenv() or _G) local f = readfile("' .. Srv.Path
-          .. '") e.HavenHubSource = f loadstring(f)()'
-      end
-      -- ما فيه نسخة محفوظة (المنفذ بلا ملفات): نشغلها من الرابط مباشرة
-      return 'local s = game:HttpGet("' .. Srv.Url .. '") local e = (getgenv and getgenv() or _G) e.HavenHubSource = s loadstring(s)()'
+      -- سطر واحد يغطي الحالتين: النسخة المحفوظة إن وجدت، وإلا تنزيل. ما يطيح لو الملف انمسح
+      return 'local s = nil pcall(function() if isfile and isfile("' .. Srv.Path .. '") then s = readfile("' .. Srv.Path .. '") end end) '
+        .. 'if type(s) ~= "string" or #s < 10000 then s = game:HttpGet("' .. Srv.Url .. '") end '
+        .. 'local e = (getgenv and getgenv() or _G) e.HavenHubSource = s loadstring(s)()'
     end
 
     -- الحالة تنتقل جوّا نص الـ queue نفسه: لا ملف جديد ولا متغير يبقى بالذاكرة
@@ -5350,7 +5349,10 @@ local HavenOK, HavenErr = pcall(function()
           makefolder("autoexec") -- المنفذ بلا مجلد إقلاع: ننشئه
         end
       end)
+      -- ملف الإقلاع يشتغل قبل ما تجهز اللعبة، و PlaceId وقتها 0 — لازم ننتظر التحميل قبل الفحص،
+      -- وإلا الملف يمسح نفسه ويطلع بدون ما يشغّل شي (وهذا اللي كان يصير)
       local body = 'pcall(function() local d = delfile or deletefile if d then d("' .. Srv.FilePath .. '") end end) '
+        .. 'if not game:IsLoaded() then game.Loaded:Wait() end '
         .. 'if game.PlaceId ~= ' .. tostring(Srv.Place) .. ' then return end '
         .. payload
       if not pcall(writefile, Srv.FilePath, body) then return false end
