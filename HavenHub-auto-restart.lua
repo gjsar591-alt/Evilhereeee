@@ -75,7 +75,6 @@ local HavenOK, HavenErr = pcall(function()
     ["Advanced ESP"] = "ESP متطور",
     ["Skeleton"] = "الهيكل العظمي",
     ["Box"] = "المربع",
-    ["Info Tag (Name / Role / Distance / HP)"] = "بطاقة المعلومات (الاسم / الدور / المسافة / الصحة)",
     ["Gun Drop ESP"] = "ESP المسدس الطايح",
     ["Hide MM2 Popups"] = "إخفاء نوافذ اللعبة",
     ["Hide End-Of-Round Screens"] = "إخفاء شاشات نهاية الجولة",
@@ -102,6 +101,10 @@ local HavenOK, HavenErr = pcall(function()
     ["Anti-Stealer (Block Trades)"] = "مضاد السرقة (حظر التبادل)",
     ["Farm Speed"] = "سرعة الفارم",
     ["Collect Radius"] = "مدى الالتقاط",
+    ["Chams (Body Glow)"] = "توهج الجسم",
+    ["Show Dead Players"] = "إظهار الموتى",
+    ["Max Distance (0 = All)"] = "أقصى مسافة (0 = الكل)",
+    ["Info Tag (Name / Role / Distance)"] = "بطاقة المعلومات",
     ["Skeleton Thickness"] = "سماكة الهيكل",
     ["Kill Aura Range"] = "مدى هالة القتل",
     ["Hitbox Size"] = "حجم الهيت بوكس",
@@ -2705,6 +2708,7 @@ local HavenOK, HavenErr = pcall(function()
 
   local espState = {} -- [player] = لون الهيكل (أو nil لو هيكله مخفي)
   local espLines = {} -- [player] = {LineHandleAdornment, ...}
+  local espGui = {}   -- [player] = {box, fill, edge, barBg, bar, tag, label, hl}
   local espFolder = nil
   local function GetEspFolder()
     if not (espFolder and espFolder.Parent) then
@@ -2729,8 +2733,11 @@ local HavenOK, HavenErr = pcall(function()
     cache[name] = part
     return part
   end
+  -- جدول واحد ينعاد استخدامه: بناء جدول لكل لاعب كل فريم كان يولّد قمامة تثقل الجوال
+  local boneBuf = {}
   local function GetBones(char)
-    local bones = {}
+    local bones = boneBuf
+    table.clear(bones)
     local function add(a, b) if a and b then table.insert(bones, a) table.insert(bones, b) end end
     local head = Part(char, "Head")
     local upper, lower = Part(char, "UpperTorso"), Part(char, "LowerTorso")
@@ -2792,10 +2799,47 @@ local HavenOK, HavenErr = pcall(function()
     end
   end
 
-  local function EspRemove(char, name)
-    local head = char and char:FindFirstChild("Head")
-    local gui = head and head:FindFirstChild(name)
-    if gui then gui:Destroy() end
+  -- كل عناصر اللاعب تتبنى مرة وحدة وتعيش بمجلد الهب، والإظهار/الإخفاء بـ Enabled فقط:
+  -- قبل كانت تتبنى وتنمسح جوّا رأس اللاعب كل مرة، فتروح مع كل موت وتثقل اللعبة
+  local function EspObjects(player)
+    local existing = espGui[player]
+    if existing and existing.box.Parent then return existing end
+    local folder = GetEspFolder()
+
+    local box = Instance.new("BillboardGui")
+    box.Name = "HavenBox" box.Size = UDim2.new(4.2, 0, 6, 0) box.StudsOffset = Vector3.new(0, -0.2, 0)
+    box.AlwaysOnTop = true box.Enabled = false box.Parent = folder
+    local fill = Instance.new("Frame") fill.Size = UDim2.fromScale(1, 1) fill.BorderSizePixel = 0 fill.Parent = box
+    local edge = Instance.new("UIStroke") edge.Thickness = 1.5 edge.Parent = fill
+    -- شريط صحة رفيع على يسار المربع
+    local barBg = Instance.new("Frame") barBg.Size = UDim2.new(0, 3, 1, 0) barBg.Position = UDim2.new(0, -5, 0, 0)
+    barBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0) barBg.BackgroundTransparency = 0.3 barBg.BorderSizePixel = 0 barBg.Parent = box
+    local bar = Instance.new("Frame") bar.AnchorPoint = Vector2.new(0, 1) bar.Position = UDim2.fromScale(0, 1)
+    bar.Size = UDim2.fromScale(1, 1) bar.BorderSizePixel = 0 bar.Parent = barBg
+
+    local tag = Instance.new("BillboardGui")
+    tag.Name = "HavenTag" tag.Size = UDim2.new(0, 220, 0, 36) tag.StudsOffset = Vector3.new(0, 4.2, 0)
+    tag.AlwaysOnTop = true tag.Enabled = false tag.Parent = folder
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1 label.Size = UDim2.fromScale(1, 1) label.TextSize = 13 label.Font = Enum.Font.GothamBold
+    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0) label.TextStrokeTransparency = 0.3 label.RichText = true label.Parent = tag
+
+    -- توهج الجسم: يبان من ورا الجدران وأخف من رسم أشكال
+    local hl = Instance.new("Highlight")
+    hl.FillTransparency = 0.6 hl.OutlineTransparency = 0 hl.Enabled = false
+    pcall(function() hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop end)
+    hl.Parent = folder
+
+    local objects = {box = box, fill = fill, edge = edge, barBg = barBg, bar = bar, tag = tag, label = label, hl = hl}
+    espGui[player] = objects
+    return objects
+  end
+
+  local function EspDestroy(player)
+    local objects = espGui[player]
+    if not objects then return end
+    for _, key in ipairs({"box", "tag", "hl"}) do pcall(function() objects[key]:Destroy() end) end
+    espGui[player] = nil
   end
 
   -- كل 0.2 ثانية: يحدد مين يظهر له ESP ولونه، ويحدّث المربع والبطاقة
@@ -2806,6 +2850,7 @@ local HavenOK, HavenErr = pcall(function()
       if player.Parent == nil then
         for _, line in ipairs(lines) do line:Destroy() end
         espLines[player] = nil espState[player] = nil
+        EspDestroy(player)
       end
     end
     for _, player in pairs(Players:GetPlayers()) do
@@ -2839,50 +2884,52 @@ local HavenOK, HavenErr = pcall(function()
           espState[player] = nil
         end
 
-        -- المربع: حجمه بالستد فيصغر ويكبر مع المسافة
-        if visible and EspOpt("EspBox", true) then
-          local box = head:FindFirstChild("HavenEspBox")
-          if not box then
-            box = Instance.new("BillboardGui")
-            box.Name = "HavenEspBox" box.Size = UDim2.new(4.2, 0, 6, 0) box.StudsOffset = Vector3.new(0, -0.2, 0) box.AlwaysOnTop = true
-            local fill = Instance.new("Frame", box)
-            fill.Name = "Fill" fill.Size = UDim2.new(1, 0, 1, 0) fill.BorderSizePixel = 0
-            local edge = Instance.new("UIStroke", fill)
-            edge.Name = "Edge" edge.Thickness = 1.5
-            box.Parent = head
-          end
-          box.Adornee = char:FindFirstChild("HumanoidRootPart") or head
-          local fill = box:FindFirstChild("Fill")
-          if fill then
-            fill.BackgroundColor3 = color
-            fill.BackgroundTransparency = (EspOpt("EspBoxStyle", "Filled") == "Filled") and 0.65 or 1
-            local edge = fill:FindFirstChild("Edge")
-            if edge then edge.Color = color end
-          end
-        else
-          EspRemove(char, "HavenEspBox")
-        end
+        -- بعيد عن مدى الإظهار؟ نطفي كل شي عنه (أهدأ للشاشة وأخف على الجهاز)
+        local dist = (myRoot and head) and math.floor((head.Position - myRoot.Position).Magnitude) or 0
+        local maxDist = tonumber(EspOpt("EspMaxDistance", 0)) or 0
+        if maxDist > 0 and dist > maxDist then visible = false end
+        if key == "Dead" and not EspOpt("EspShowDead", false) then visible = false end
+        if not visible then espState[player] = nil end
 
-        -- البطاقة: الاسم، الدور، المسافة، الصحة
-        if visible and EspOpt("EspTag", true) then
-          local tag = head:FindFirstChild("HavenEspTag")
-          if not tag then
-            tag = Instance.new("BillboardGui")
-            tag.Name = "HavenEspTag" tag.Adornee = head tag.Size = UDim2.new(0, 220, 0, 34) tag.StudsOffset = Vector3.new(0, 4.2, 0) tag.AlwaysOnTop = true
-            local lbl = Instance.new("TextLabel", tag)
-            lbl.Name = "Label" lbl.BackgroundTransparency = 1 lbl.Size = UDim2.new(1, 0, 1, 0) lbl.TextSize = 13 lbl.Font = Enum.Font.GothamBold
-            lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0) lbl.TextStrokeTransparency = 0.3
-            tag.Parent = head
+        -- ما نبني عناصر إلا للي راح يظهر فعلاً؛ ولو كانت مبنية من قبل نطفيها
+        local objects = (visible and EspObjects(player)) or espGui[player]
+        if objects then
+          local hum = char and char:FindFirstChildOfClass("Humanoid")
+          local health = hum and math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1) or 0
+
+          -- المربع: حجمه بالستد فيصغر ويكبر مع المسافة، ومعه شريط صحة
+          if visible and head and EspOpt("EspBox", true) then
+            objects.box.Adornee = (char and char:FindFirstChild("HumanoidRootPart")) or head
+            objects.box.Enabled = true
+            objects.fill.BackgroundColor3 = color
+            objects.fill.BackgroundTransparency = (EspOpt("EspBoxStyle", "Filled") == "Filled") and 0.65 or 1
+            objects.edge.Color = color
+            objects.barBg.Visible = hum ~= nil
+            objects.bar.Size = UDim2.fromScale(1, health)
+            objects.bar.BackgroundColor3 = Color3.fromRGB(math.floor(255 * (1 - health)), math.floor(200 * health + 40), 60)
+          else
+            objects.box.Enabled = false
           end
-          local lbl = tag:FindFirstChild("Label")
-          if lbl then
-            local dist = myRoot and math.floor((head.Position - myRoot.Position).Magnitude) or 0
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            lbl.Text = player.Name .. "\n" .. string.upper(key) .. "  •  " .. dist .. "m  •  " .. math.floor(hum and hum.Health or 0) .. " HP"
-            lbl.TextColor3 = color
+
+          -- توهج الجسم: يبان من ورا الجدران
+          if visible and char and EspOpt("EspChams", false) then
+            objects.hl.Adornee = char
+            objects.hl.FillColor = color
+            objects.hl.OutlineColor = color
+            objects.hl.Enabled = true
+          else
+            objects.hl.Enabled = false
           end
-        else
-          EspRemove(char, "HavenEspTag")
+
+          -- البطاقة: الاسم فوق، وتحته الدور والمسافة
+          if visible and head and EspOpt("EspTag", true) then
+            objects.tag.Adornee = head
+            objects.tag.Enabled = true
+            objects.label.Text = player.Name .. "\n" .. string.upper(key) .. "  |  " .. dist .. " studs"
+            objects.label.TextColor3 = color
+          else
+            objects.tag.Enabled = false
+          end
         end
       end
     end
@@ -2903,7 +2950,8 @@ local HavenOK, HavenErr = pcall(function()
   local function ClearESP()
     for k, v in pairs(tbl) do if v then v:Destroy() end tbl[k] = nil end
     for _, lines in pairs(espLines) do for _, line in ipairs(lines) do pcall(function() line:Destroy() end) end end
-    espLines, espState = {}, {}
+    for player in pairs(espGui) do EspDestroy(player) end
+    espLines, espState, espGui = {}, {}, {}
     if espFolder then pcall(function() espFolder:Destroy() end) espFolder = nil end
     for _, p in pairs(Players:GetPlayers()) do
       local head = p.Character and p.Character:FindFirstChild("Head")
@@ -4043,7 +4091,10 @@ local HavenOK, HavenErr = pcall(function()
   local espRemoving = Players.PlayerRemoving:Connect(function(p) EspPlayerDropdown:RemoveOptions({p.Name}) end)
   shared.Visual:Toggle("EspSkeleton", "Skeleton", {State = true}, function() end)
   shared.Visual:Toggle("EspBox", "Box", {State = true}, function() end)
-  shared.Visual:Toggle("EspTag", "Info Tag (Name / Role / Distance / HP)", {State = true}, function() end)
+  shared.Visual:Toggle("EspTag", "Info Tag (Name / Role / Distance)", {State = true}, function() end)
+  shared.Visual:Toggle("EspChams", "Chams (Body Glow)", function() end)
+  shared.Visual:Toggle("EspShowDead", "Show Dead Players", function() end)
+  shared.Visual:Slider("EspMaxDistance", "Max Distance (0 = All)", 0, 1000, 0, "Percent", function() end)
   shared.Visual:Dropdown({Name = "Box Style", Multi = false, Required = true, Options = {"Filled", "Outline Only"}, Default = 1, Callback = function() end}, "EspBoxStyle")
   shared.Visual:Slider("EspThickness", "Skeleton Thickness", 1, 5, 2, "Percent", function() end)
   shared.Visual:Dropdown({Name = "Skeleton Color", Multi = false, Required = true, Options = {"Black", "White", "Role Color", "Red", "Blue", "Green", "Yellow", "Orange", "Purple", "Pink", "Cyan"}, Default = 1, Callback = function() end}, "EspSkeletonColor")
