@@ -2724,12 +2724,10 @@ local HavenOK, HavenErr = pcall(function()
     local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 40)
     if not IsBagFull() and CoinAttribute(coin, true) then
       local style = Options.FarmStyle and Options.FarmStyle:GetValue() or "Underground Lying"
-      -- Teleport ما ينزل تحت الأرض: الظهور فجأة داخل الأرضية هو نفسه "Invalid position".
-      -- الأنماط الثانية تزحف لنفس المكان بالنوكلب تدريجياً فاللعبة تتقبلها
-      farmIsUnderground = (style == "Underground Lying" or style == "Underground Standing")
+      farmIsUnderground = style ~= "Above Ground"
       local target = CFrame.new(pos.X, pos.Y + (farmIsUnderground and -FARM_DEPTH or 1.5), pos.Z)
-      -- منسدح على بطنه (مو واقف) وهو يتحرك تحت الأرض
-      if style == "Underground Lying" then target = target * CFrame.Angles(math.rad(-90), 0, 0) end
+      -- منسدح على بطنه (مو واقف) وهو تحت الأرض
+      if style == "Underground Lying" or style == "Teleport" then target = target * CFrame.Angles(math.rad(-90), 0, 0) end
       if style == "Teleport" then
         -- نقلة وحدة كل 1.6 ثانية بالضبط، مو خطوات متتابعة:
         -- الخطوات السريعة هي اللي طردت "Invalid position". (سلايدر السرعة يخص الأنماط الثانية)
@@ -2739,13 +2737,19 @@ local HavenOK, HavenErr = pcall(function()
         farmStall.lastTp = os.clock()
         if v17 then v17:Cancel() v17 = nil end
         rootPart.AssemblyLinearVelocity = Vector3.zero -- بدون سرعة متبقية: لا فلنق ولا سقوط
-        -- أبعد من 150 ستد نقطع المسافة على أكثر من نقلة: القفزة الطويلة أخطر حدث للفحص
-        local delta = target.Position - rootPart.Position
+        -- النقلة الأفقية تصير فوق العملة (هواء طلق)، وبعدها ننزل تحتها بخطوة قصيرة.
+        -- الظهور المباشر جوّا الأرض هو اللي يطرد "Invalid position"، أما النزول القصير فمثل بقية الأنماط
+        local above = CFrame.new(pos.X, pos.Y + 1.5, pos.Z)
+        local delta = above.Position - rootPart.Position
         if delta.Magnitude > 150 then
-          rootPart.CFrame = target.Rotation + (rootPart.Position + delta.Unit * 150)
-        else
-          rootPart.CFrame = target
+          -- أبعد من 150 ستد: نقطع جزء الحين والباقي بالنقلة الجاية
+          rootPart.CFrame = CFrame.new(rootPart.Position + delta.Unit * 150)
+          return
         end
+        rootPart.CFrame = above
+        task.wait(0.08)
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+        rootPart.CFrame = target -- تحت العملة ومنبطح
         return
       end
 
