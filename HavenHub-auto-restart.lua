@@ -2712,7 +2712,9 @@ local HavenOK, HavenErr = pcall(function()
     local speed = math.clamp(tonumber(Options.FarmSpeed and Options.FarmSpeed:GetValue()) or 26, 16, 40)
     if not IsBagFull() and CoinAttribute(coin, true) then
       local style = Options.FarmStyle and Options.FarmStyle:GetValue() or "Underground Lying"
-      farmIsUnderground = style ~= "Above Ground"
+      -- Teleport ما ينزل تحت الأرض: الظهور فجأة داخل الأرضية هو نفسه "Invalid position".
+      -- الأنماط الثانية تزحف لنفس المكان بالنوكلب تدريجياً فاللعبة تتقبلها
+      farmIsUnderground = (style == "Underground Lying" or style == "Underground Standing")
       local target = CFrame.new(pos.X, pos.Y + (farmIsUnderground and -FARM_DEPTH or 1.5), pos.Z)
       -- منسدح على بطنه (مو واقف) وهو يتحرك تحت الأرض
       if style == "Underground Lying" then target = target * CFrame.Angles(math.rad(-90), 0, 0) end
@@ -2720,17 +2722,18 @@ local HavenOK, HavenErr = pcall(function()
         -- إيقاع لا يطرد: نقلة وحدة كل ~ثانية، مو خطوات متتابعة.
         -- التجربة: نقلة/ثانية ما طردت أبداً، والخطوات السريعة طردت "Invalid position".
         -- السلايدر يقصّر الفاصل لين 0.7 ثانية فقط، وما ينزل تحتها مهما رفعته
-        local gap = math.clamp(26 / speed, 0.7, 1.2)
+        -- فاصل غير منتظم شوي: الإيقاع الآلي الثابت أسهل شي ينكشف بفحوصات النمط
+        local gap = math.clamp(26 / speed, 0.7, 1.2) + math.random() * 0.2
         local left = gap - (os.clock() - (farmStall.lastTp or 0))
         if left > 0 then task.wait(left) end
         if not (coin.Parent and rootPart.Parent and Options.AutoFarm:GetValue()) or IsBagFull() then return end
         farmStall.lastTp = os.clock()
         if v17 then v17:Cancel() v17 = nil end
         rootPart.AssemblyLinearVelocity = Vector3.zero -- بدون سرعة متبقية: لا فلنق ولا سقوط
-        -- أبعد من 300 ستد نقطع المسافة على نقلتين: قفزة نص الماب بلحظة هي أخطر حدث للفحص
+        -- أبعد من 150 ستد نقطع المسافة على أكثر من نقلة: القفزة الطويلة أخطر حدث للفحص
         local delta = target.Position - rootPart.Position
-        if delta.Magnitude > 300 then
-          rootPart.CFrame = target.Rotation + (rootPart.Position + delta.Unit * 300)
+        if delta.Magnitude > 150 then
+          rootPart.CFrame = target.Rotation + (rootPart.Position + delta.Unit * 150)
         else
           rootPart.CFrame = target
         end
