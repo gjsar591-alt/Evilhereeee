@@ -2367,6 +2367,7 @@ local HavenOK, HavenErr = pcall(function()
   local res = {
     emote = function(_, emoteName) pcall(function() ReplicatedStorage.Remotes.Misc.PlayEmote:Fire(emoteName) end) end,
     fling = function(_, targetPlayer)
+      local done = false
       pcall(function()
         local char = LocalPlayer.Character
         local myRoot = char and char:FindFirstChild("HumanoidRootPart")
@@ -2375,36 +2376,68 @@ local HavenOK, HavenErr = pcall(function()
         local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
         local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
         if not (myRoot and hum and tRoot and tHum) then return end
+        if tHum.Health <= 0 or hum.Health <= 0 then return end
+        -- هدف بعيد جداً = غالباً باللوبي أو بمكان ما نوصله: ما نحاول
+        if (tRoot.Position - myRoot.Position).Magnitude > 900 then return end
+
+        -- نقترب بخطوات قصيرة: القفزة الوحدة الطويلة تطردك "Invalid position"
+        local function StepTo(target, stopWithin)
+          local guard = 0
+          while guard < 90 do
+            local delta = target - myRoot.Position
+            if delta.Magnitude <= stopWithin then return true end
+            guard = guard + 1
+            myRoot.CFrame = CFrame.new(myRoot.Position + delta.Unit * math.min(12, delta.Magnitude))
+            myRoot.AssemblyLinearVelocity = Vector3.zero
+            task.wait(0.12)
+          end
+          return false
+        end
+
         local savedCF, startPos = myRoot.CFrame, tRoot.Position
         local oldDestroyHeight = workspace.FallenPartsDestroyHeight
-        workspace.FallenPartsDestroyHeight = 0 / 0 -- عشان ما تنحذف أجزاءنا لو طارت
-        -- قوة دفع ضخمة ثابتة على الجذر: هذي اللي تقذف الهدف لما نلمسه
-        local bv = Instance.new("BodyVelocity")
-        bv.Name = "HavenFlingVel" bv.Velocity = Vector3.new(9e7, -9e8, 9e7) bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge) bv.Parent = myRoot
-        hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
-        myRoot.CanCollide = true
-        local function place(offset, angle)
-          local cf = CFrame.new(tRoot.Position) * offset * CFrame.Angles(math.rad(angle), 0, 0)
-          myRoot.CFrame = cf
-          myRoot.AssemblyLinearVelocity = Vector3.new(9e7, -9e8, 9e7)
-          myRoot.AssemblyAngularVelocity = Vector3.new(9e8, 9e8, 9e8)
+        local bv
+        -- كل اللي يغيّر حالة اللعبة ينرجع هنا مهما صار خطأ بالنص (قبل كان يبقى معطّل لو طاح)
+        local function Restore()
+          pcall(function() if bv then bv:Destroy() end end)
+          pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true) end)
+          pcall(function() workspace.FallenPartsDestroyHeight = oldDestroyHeight end)
         end
-        local start, angle = os.clock(), 0
-        repeat
-          angle = angle + 100
-          local lead = tHum.MoveDirection * tRoot.AssemblyLinearVelocity.Magnitude / 1.25
-          -- نضربه من فوق ومن الجنب ونحن ندور، والدفع كله لتحت: يخترق الأرض ويطيح في الفويد
-          place(CFrame.new(Vector3.new(0, 2, 0) + lead), angle) task.wait()
-          place(CFrame.new(Vector3.new(0, 0.5, 0) + lead), angle) task.wait()
-          place(CFrame.new(Vector3.new(1.5, 2, -1.5) + lead), angle) task.wait()
-          place(CFrame.new(Vector3.new(-1.5, 0.5, 1.5) + lead), angle) task.wait()
-          -- نكمل لين يموت أو يطيح تحت الماب أو يطير بعيد (مو بس أول ما يتحرك)
-        until os.clock() - start > 3.5 or not tRoot.Parent or targetPlayer.Character ~= tChar
-          or tHum.Health <= 0 or hum.Health <= 0
-          or tRoot.Position.Y < startPos.Y - 150 or (tRoot.Position - startPos).Magnitude > 1500
-        bv:Destroy()
-        hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
-        -- نرجع لمكاننا ونصفّر السرعة (نكرر لين نثبت فعلاً)
+
+        local ok = pcall(function()
+          StepTo(tRoot.Position, 18)
+          workspace.FallenPartsDestroyHeight = 0 / 0 -- عشان ما تنحذف أجزاءنا لو طارت
+          -- قوة دفع ضخمة ثابتة على الجذر: هذي اللي تقذف الهدف لما نلمسه
+          bv = Instance.new("BodyVelocity")
+          bv.Name = "HavenFlingVel" bv.Velocity = Vector3.new(9e7, -9e8, 9e7) bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge) bv.Parent = myRoot
+          hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+          myRoot.CanCollide = true
+          local function place(offset, angle)
+            local cf = CFrame.new(tRoot.Position) * offset * CFrame.Angles(math.rad(angle), 0, 0)
+            myRoot.CFrame = cf
+            myRoot.AssemblyLinearVelocity = Vector3.new(9e7, -9e8, 9e7)
+            myRoot.AssemblyAngularVelocity = Vector3.new(9e8, 9e8, 9e8)
+          end
+          local start, angle = os.clock(), 0
+          repeat
+            angle = angle + 100
+            local lead = tHum.MoveDirection * tRoot.AssemblyLinearVelocity.Magnitude / 1.25
+            -- نضربه من فوق ومن الجنب ونحن ندور، والدفع كله لتحت: يخترق الأرض ويطيح في الفويد
+            place(CFrame.new(Vector3.new(0, 2, 0) + lead), angle) task.wait()
+            place(CFrame.new(Vector3.new(0, 0.5, 0) + lead), angle) task.wait()
+            place(CFrame.new(Vector3.new(1.5, 2, -1.5) + lead), angle) task.wait()
+            place(CFrame.new(Vector3.new(-1.5, 0.5, 1.5) + lead), angle) task.wait()
+            -- نجح: مات، أو طاح تحت الماب، أو طار بعيد
+            done = (tHum.Health <= 0) or (tRoot.Position.Y < startPos.Y - 150)
+              or ((tRoot.Position - startPos).Magnitude > 1500)
+          until done or os.clock() - start > 3.5 or not tRoot.Parent
+            or targetPlayer.Character ~= tChar or hum.Health <= 0
+        end)
+        Restore()
+        if not ok then return end
+
+        -- نرجع لمكاننا: بخطوات كمان، وبعدها نثبت ونصفّر السرعة
+        StepTo(savedCF.Position, 14)
         local back = os.clock()
         repeat
           myRoot.CFrame = savedCF
@@ -2414,8 +2447,8 @@ local HavenOK, HavenErr = pcall(function()
           hum:ChangeState(Enum.HumanoidStateType.GettingUp)
           task.wait()
         until (myRoot.Position - savedCF.Position).Magnitude < 10 or os.clock() - back > 1
-        workspace.FallenPartsDestroyHeight = oldDestroyHeight
       end)
+      return done
     end
   }
 
@@ -3303,9 +3336,11 @@ local HavenOK, HavenErr = pcall(function()
   end)
 
   -- فلنق يشتغل حتى والفارم شغال: نرجّع التصادم ونشيل الطفو مؤقتاً، ثم نرجع لمكاننا
+  -- كل فلنق لازم يمر من هنا: بدون تفعيل التصادم الفلنق ما يشتغل أصلاً
   local function FlingWithCollision(target)
-    if flingBusy then return end
+    if flingBusy or not target then return false end
     flingBusy = true
+    local hit = false
     pcall(function()
       local char = LocalPlayer.Character
       local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -3316,11 +3351,12 @@ local HavenOK, HavenErr = pcall(function()
         local part = char:FindFirstChild(name)
         if part then part.CanCollide = true end
       end
-      Mark("fling")
-      res:fling(target)
+      hit = res:fling(target) == true
       if hadFloat then EnableFloat() end
     end)
     flingBusy = false
+    Mark("fling " .. (hit and "hit" or "missed") .. ": " .. tostring(target.Name))
+    return hit
   end
 
   -- بريء (بدون سكين ولا مسدس): يسوي فلنق للقاتل
@@ -3445,7 +3481,7 @@ local HavenOK, HavenErr = pcall(function()
       Window:Notify({Title = "HAVEN HUB", Description = "Flings Murderer when you are not in the round.", Duration = 5})
       repeat task.wait(0.2)
         local mPlayer = v14 and Players:FindFirstChild(v14)
-        if mPlayer and not IsPlayerAlive(LocalPlayer, roles) and v14 ~= LocalPlayer.Name then res:fling(mPlayer) task.wait(3) end
+        if mPlayer and not IsPlayerAlive(LocalPlayer, roles) and v14 ~= LocalPlayer.Name then FlingWithCollision(mPlayer) task.wait(3) end
       until not Options.EndRound:GetValue()
     end
   end)
@@ -4106,7 +4142,7 @@ local HavenOK, HavenErr = pcall(function()
     if arg1 then
       repeat task.wait(0.1)
         local target = Options.Target:GetValue() and Players:FindFirstChild(Options.Target:GetValue())
-        if target then res:fling(target) end
+        if target then FlingWithCollision(target) end
         task.wait(3)
       until not Options.TargetFling:GetValue()
     end
@@ -4157,7 +4193,7 @@ local HavenOK, HavenErr = pcall(function()
     if arg1 then
       repeat task.wait(0.1)
         local sPlayer = v15 and Players:FindFirstChild(v15)
-        if sPlayer and v15 ~= LocalPlayer.Name then res:fling(sPlayer) task.wait(3) end
+        if sPlayer and v15 ~= LocalPlayer.Name then FlingWithCollision(sPlayer) task.wait(3) end
       until not Options.FlingSheriff:GetValue()
     end
   end)
@@ -4166,7 +4202,7 @@ local HavenOK, HavenErr = pcall(function()
     if arg1 then
       repeat task.wait(0.1)
         local mPlayer = v14 and Players:FindFirstChild(v14)
-        if mPlayer and v14 ~= LocalPlayer.Name then res:fling(mPlayer) task.wait(3) end
+        if mPlayer and v14 ~= LocalPlayer.Name then FlingWithCollision(mPlayer) task.wait(3) end
       until not Options.FlingMurderer:GetValue()
     end
   end)
